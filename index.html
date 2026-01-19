@@ -1,7 +1,4 @@
-<!-- =========================
-PART 1 / 2 — index.html (PASTE THIS FIRST)
-Then say "go" for PART 2 / 2.
-========================= -->
+
 <!doctype html>
 <html lang="en">
 <head>
@@ -641,27 +638,25 @@ async function fetchIV({startISO=null,endISO=null,period=null}={}){
   return res.json();
 }
 
-/* NEW: pick the best series from ALL returned timeSeries */
-function extractBestSeries(json){
-  const series = json?.value?.timeSeries || [];
-  let best = [];
+function extractSeries(json){
+  const tss = json?.value?.timeSeries || [];
+  let bestPts = [];
 
-  for(const ts of series){
+  for (const ts of tss){
     const vals = ts?.values?.[0]?.value || [];
     const pts = vals
-      .map(v=>({t:v.dateTime, ft:+v.value}))
-      .filter(p=>p.t && Number.isFinite(p.ft));
+      .map(v => ({ t: v.dateTime, ft: Number(v.value) }))
+      .filter(p => p.t && Number.isFinite(p.ft));
 
-    if(pts.length > best.length) best = pts;
+    if (pts.length > bestPts.length) bestPts = pts;
   }
-
-  return best;
+  return bestPts;
 }
 
 /* Use best-of-all-series extractor (fixes blank live panel) */
 async function fetchObservedSeries({startISO=null,endISO=null,period=null}={}){
   const j = await fetchIV({startISO,endISO,period});
-  return extractBestSeries(j);
+  return extractSeries(j);
 }
 
 /* NOAA helpers */
@@ -782,14 +777,7 @@ function sliceAfter(series, startISO){
   const s = new Date(startISO).getTime();
   return (series||[]).filter(p=>new Date(p.t).getTime()>=s);
 }
-
-<!-- =========================
-PART 2 / 2 — index.html (PASTE IMMEDIATELY AFTER PART 1)
-This continues inside the SAME <script> tag and finishes the file.
-========================= -->
-
-/* ========= SCRIPT (Part 2/2) ========= */
-
+      
 function colorForFtDisplay(ftDisplay){
   const T = THRESH[DISPLAY_DATUM];
   if(ftDisplay>=T.majorLow)    return "rgba(167,139,250,.95)";
