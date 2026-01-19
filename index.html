@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="en">
 <head>
@@ -357,19 +356,20 @@ function mllwToNavd(ft){ return ft + OFFSET_NAVD_FROM_MLLW_FT; }
 function navdToMllw(ft){ return ft - OFFSET_NAVD_FROM_MLLW_FT; }
 
 /* =========================
-CRITICAL LIVE-DATA FIX
-Why you were seeing blanks:
-USGS iv often returns MULTIPLE timeSeries, and the FIRST one is not guaranteed
-to be the water level series you want. Your old code only read timeSeries[0],
-so it frequently got an empty/irrelevant series and returned ZERO points.
-This version scans ALL returned series and picks the one with the most valid points.
+CRITICAL PARAMETER FIX (Water Level, not Discharge)
+- Your dashboard logic (flood thresholds + MLLW/NAVD88 toggle) assumes the live series is an ELEVATION referenced
+  to NAVD88 (or at least a stable vertical datum), NOT discharge (cfs) and NOT generic stage.
+- For Bivalve, the cleanest choice is USGS parameter 72279:
+  "Tidal elevation, NOS-averaged, NAVD88 (ft)" (your TXT columns already use 72279 daily stats).
+- So: request ONLY 72279 and only accept that series from the USGS JSON, so we never accidentally grab a non-water-level series.
 ========================= */
 
 /* USGS observed (15-min IV). */
 const USGS_SITE="01412150";
 
-/* Request BOTH params at once; then we auto-pick the best populated series. */
-const USGS_PARAM_CSV = "72279,00065";
+/* Water level ONLY (tide elevation NAVD88). */
+const USGS_PARAM_PRIMARY = "72279";
+const USGS_PARAM_CSV = USGS_PARAM_PRIMARY;
 
 /* NOAA CO-OPS predictions */
 const COOPS_STATION="8535055";
@@ -401,7 +401,7 @@ const TXT_PATH_CANDIDATES = [
 
 let DAILY_TIDES_TXT_URL = TXT_PATH_CANDIDATES[0];
 
-/* TXT columns */
+/* TXT columns (NAVD88 daily stats for parameter 72279) */
 const COL_DAILY_HIGH  = "239251_72279_00021";
 const COL_DAILY_LOWHI = "239252_72279_00022";
 
@@ -638,25 +638,37 @@ async function fetchIV({startISO=null,endISO=null,period=null}={}){
   return res.json();
 }
 
-function extractSeries(json){
+/* Extract ONLY the water-level (72279) series; never discharge, never arbitrary first-series. */
+function getTsParamCode(ts){
+  return ts?.variable?.variableCode?.[0]?.value || null;
+}
+function extractWaterLevelSeries_NAVD88(json){
   const tss = json?.value?.timeSeries || [];
-  let bestPts = [];
+  const candidates = tss.filter(ts => getTsParamCode(ts) === USGS_PARAM_PRIMARY);
 
-  for (const ts of tss){
+  if(!candidates.length){
+    const have = tss.map(getTsParamCode).filter(Boolean);
+    throw new Error(
+      `USGS returned no water-level series for parameter ${USGS_PARAM_PRIMARY}. ` +
+      (have.length ? `Returned codes: ${[...new Set(have)].join(", ")}` : "No codes returned.")
+    );
+  }
+
+  let bestPts = [];
+  for(const ts of candidates){
     const vals = ts?.values?.[0]?.value || [];
     const pts = vals
       .map(v => ({ t: v.dateTime, ft: Number(v.value) }))
       .filter(p => p.t && Number.isFinite(p.ft));
-
-    if (pts.length > bestPts.length) bestPts = pts;
+    if(pts.length > bestPts.length) bestPts = pts;
   }
   return bestPts;
 }
 
-/* Use best-of-all-series extractor (fixes blank live panel) */
+/* Use the water-level extractor */
 async function fetchObservedSeries({startISO=null,endISO=null,period=null}={}){
   const j = await fetchIV({startISO,endISO,period});
-  return extractSeries(j);
+  return extractWaterLevelSeries_NAVD88(j);
 }
 
 /* NOAA helpers */
@@ -777,7 +789,7 @@ function sliceAfter(series, startISO){
   const s = new Date(startISO).getTime();
   return (series||[]).filter(p=>new Date(p.t).getTime()>=s);
 }
-      
+
 function colorForFtDisplay(ftDisplay){
   const T = THRESH[DISPLAY_DATUM];
   if(ftDisplay>=T.majorLow)    return "rgba(167,139,250,.95)";
@@ -941,7 +953,7 @@ function ensureTsChart(){
       labels:[],
       datasets:[
         {
-          label:"Observed (USGS)",
+          label:"Observed (USGS water level)",
           data:[],
           borderWidth:2,
           pointRadius:0,
@@ -1220,7 +1232,7 @@ async function updateLiveAndAnnualCounts(){
   const endISO = nowISO();
 
   const ytd = await fetchObservedSeries({startISO, endISO});
-  if(!ytd.length) throw new Error("no live data returned from USGS");
+  if(!ytd.length) throw new Error("no live water-level data returned from USGS");
 
   STATE.ytdNavd = ytd;
   STATE.lastNavd = ytd[ytd.length-1];
