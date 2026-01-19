@@ -237,7 +237,6 @@
         <div class="kicker" style="text-transform:none">Observed: USGS 15-min · Predicted: NOAA CO-OPS (converted to NAVD88)</div>
       </div>
       <div class="chartWrapTall"><canvas id="tsChart"></canvas></div>
-      <!-- KEEP ELEMENT (NO LAYOUT CHANGES), BUT BLANK IT OUT -->
       <div class="foot" id="fcNote"></div>
     </div>
 
@@ -403,6 +402,7 @@ function toCOOPSLocalString(date){
   const mm=parts.find(p=>p.type==="minute").value;
   return `${y}${m}${d} ${hh}:${mm}`;
 }
+
 async function fetchCOOPSPredictions72h_NAVD88(){
   const start=new Date();
   const end=new Date(start.getTime()+72*3600*1000);
@@ -411,7 +411,6 @@ async function fetchCOOPSPredictions72h_NAVD88(){
   url.searchParams.set("product","predictions");
   url.searchParams.set("application",COOPS_APP);
   url.searchParams.set("station",COOPS_STATION);
- /hooks.IGNORE
   url.searchParams.set("datum",COOPS_DATUM);
   url.searchParams.set("time_zone",COOPS_TZ);
   url.searchParams.set("units","english");
@@ -564,7 +563,7 @@ function buildTsChart(obs, fc){
     }
   });
 
-  // REMOVE THE RANGE LINE COMPLETELY
+  // removed range line
   fcNote.textContent = "";
 }
 
