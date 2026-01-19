@@ -192,7 +192,6 @@
           <div class="rangeMeta" id="dayRangeMeta">—</div>
         </div>
 
-        <!-- THRESHOLDS ABOVE HISTORIC FLOODING PLOT -->
         <div class="stages" aria-label="Flood stages">
           <div class="stage">
             <div class="stageName">Minor</div>
@@ -238,7 +237,8 @@
         <div class="kicker" style="text-transform:none">Observed: USGS 15-min · Predicted: NOAA CO-OPS (converted to NAVD88)</div>
       </div>
       <div class="chartWrapTall"><canvas id="tsChart"></canvas></div>
-      <div class="foot" id="fcNote">—</div>
+      <!-- KEEP ELEMENT (NO LAYOUT CHANGES), BUT BLANK IT OUT -->
+      <div class="foot" id="fcNote"></div>
     </div>
 
     <div style="height:14px"></div>
@@ -277,14 +277,7 @@
   </div>
 
 <script>
-/* =========================
-   ONLY CHANGES IN THIS VERSION:
-   1) Fix the 72h chart tooltip/title so it shows formatted EST (not raw ISO).
-   2) Remove the FIRST day label on the x-axis (e.g., Jan 16) to prevent “Jan 16” and “Jan 17” crowding again.
-   (Everything else unchanged.)
-========================= */
-
-// Force fixed EST year-round (UTC-5). (This is the correct IANA form for fixed offset.)
+// Force fixed EST year-round (UTC-5).
 const TZ="Etc/GMT+5";
 
 const USGS_SITE="01412150";
@@ -345,13 +338,6 @@ function fmtESTFull(iso){
 function fmtESTDay(iso){
   const d=new Date(iso);
   return new Intl.DateTimeFormat("en-US",{timeZone:TZ,month:"short",day:"2-digit"}).format(d);
-}
-function fmtESTTight(iso){
-  const d=new Date(iso);
-  return new Intl.DateTimeFormat("en-US",{
-    timeZone:TZ,month:"short",day:"2-digit",
-    hour:"2-digit",minute:"2-digit",hour12:true
-  }).format(d).replace(",", "");
 }
 function getESTParts(date=new Date()){
   const fmt=new Intl.DateTimeFormat("en-US",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit"});
@@ -425,6 +411,7 @@ async function fetchCOOPSPredictions72h_NAVD88(){
   url.searchParams.set("product","predictions");
   url.searchParams.set("application",COOPS_APP);
   url.searchParams.set("station",COOPS_STATION);
+ /hooks.IGNORE
   url.searchParams.set("datum",COOPS_DATUM);
   url.searchParams.set("time_zone",COOPS_TZ);
   url.searchParams.set("units","english");
@@ -504,8 +491,6 @@ function renderAnnual(){
 }
 
 let tsChart=null;
-
-/* === KEY FIX #1: ALWAYS skip the first day label (prevents Jan 16 + Jan 17 crowding again) === */
 function buildDailyTickCallbackSkipFirstDay(labels){
   const seenDays = new Set();
   let firstDay = null;
@@ -515,12 +500,9 @@ function buildDailyTickCallbackSkipFirstDay(labels){
     const dayStr = fmtESTDay(iso);
 
     if(firstDay === null) firstDay = dayStr;
-
-    // only label on day change
     if(seenDays.has(dayStr)) return "";
     seenDays.add(dayStr);
 
-    // skip the first day entirely (e.g., Jan 16)
     if(dayStr === firstDay) return "";
     return dayStr;
   };
@@ -545,15 +527,13 @@ function buildTsChart(obs, fc){
       responsive:true,maintainAspectRatio:false,
       plugins:{
         legend:{labels:{color:"rgba(234,240,255,.88)",font:{weight:"950"}}},
-
-        /* === KEY FIX #2: Tooltip title shows EST-formatted date/time, not raw ISO === */
         tooltip:{
           callbacks:{
             title:(items)=>{
               if(!items || !items.length) return "";
               const idx = items[0].dataIndex;
               const iso = labels[idx];
-              return fmtESTFull(iso); // shows "Jan 18, 2026, 09:12 AM" style in EST
+              return fmtESTFull(iso);
             },
             label:(ctx)=>{
               const v = ctx.parsed?.y;
@@ -584,10 +564,8 @@ function buildTsChart(obs, fc){
     }
   });
 
-  // Tight range string (unchanged from your last version)
-  const obsMsg=obs.length?`Obs: ${fmtESTTight(obs[0].t)} → ${fmtESTTight(obs[obs.length-1].t)}`:"Obs: —";
-  const fcMsg=fc.length?`Pred: ${fmtESTTight(fc[0].t)} → ${fmtESTTight(fc[fc.length-1].t)} (NAVD88)`:"Pred: unavailable";
-  fcNote.textContent=obsMsg+" · "+fcMsg;
+  // REMOVE THE RANGE LINE COMPLETELY
+  fcNote.textContent = "";
 }
 
 let HIGH_TIDES=[];
