@@ -39,7 +39,6 @@
     }
     .banner b{font-weight:950}
     .banner .small{color:var(--muted);font-size:12.5px;margin-top:4px;line-height:1.25}
-    .banner a{opacity:.9;text-decoration:underline;text-underline-offset:3px}
 
     .top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
     .brand{display:flex;align-items:center;gap:12px}
@@ -90,13 +89,42 @@
     .ms{margin-top:6px;color:var(--muted);font-size:12.5px;line-height:1.25}
 
     .stages{
-      display:grid;grid-template-columns:repeat(3, minmax(180px,1fr));
+      display:grid;grid-template-columns:repeat(3, minmax(220px,1fr));
       gap:10px;overflow-x:auto;padding-bottom:2px;-webkit-overflow-scrolling:touch;margin-top:8px
     }
     @media(max-width:760px){.stages{grid-template-columns:1fr;overflow-x:visible}}
-    .stage{background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:180px}
-    .stageName{font-weight:950;font-size:20px;letter-spacing:.2px;white-space:nowrap}
-    .badge{font-weight:950;font-size:13px;padding:10px 14px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.06);white-space:nowrap}
+
+    /* FIX: prevent badge overflow / label collision */
+    .stage{
+      background:var(--card2);
+      border:1px solid var(--line);
+      border-radius:14px;
+      padding:14px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      min-width:220px;
+      overflow:hidden;
+    }
+    .stageName{
+      font-weight:950;
+      font-size:20px;
+      letter-spacing:.2px;
+      white-space:nowrap;
+      flex:1 1 auto;
+      min-width:0;
+    }
+    .badge{
+      font-weight:950;
+      font-size:13px;
+      padding:10px 14px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.06);
+      white-space:nowrap;
+      flex:0 0 auto;
+    }
 
     .table{border-radius:14px;overflow:hidden;border:1px solid var(--line);background:var(--card2)}
     table{width:100%;border-collapse:collapse}
@@ -128,9 +156,7 @@
       padding:8px 10px;border-radius:999px;
       border:1px solid var(--line);background:rgba(0,0,0,.14);
       font-weight:950;font-size:12.5px;
-      max-width:min(560px, 92vw);
     }
-    .miniPill span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   </style>
 </head>
 
@@ -138,11 +164,8 @@
   <div class="wrap">
 
     <div class="banner" id="alertBanner">
-      <div><b id="alertTitle">Coastal Flood Alert</b></div>
-      <div class="small">
-        <span id="alertBody"></span>
-        <span id="alertLinkWrap" style="display:none"> · <a id="alertLink" target="_blank" rel="noopener">Details</a></span>
-      </div>
+      <div><b id="alertTitle">Coastal Flood Advisory</b></div>
+      <div class="small" id="alertBody"></div>
     </div>
 
     <div class="top">
@@ -160,7 +183,7 @@
           <span id="nearText">—</span>
         </div>
 
-        <div class="statusPill">
+        <div class="statusPill" id="stagePill">
           <span class="dot" id="stageDot"></span>
           <span id="stageText">Loading…</span>
         </div>
@@ -172,7 +195,7 @@
       <div class="card">
         <div class="hrow">
           <h2>Live conditions</h2>
-          <div id="statusText" class="kicker" style="text-transform:none">—</div>
+          <div id="lastUpdated" class="kicker" style="text-transform:none">Last updated: —</div>
         </div>
 
         <div class="metrics">
@@ -204,15 +227,15 @@
         <div class="stages" aria-label="Flood stages">
           <div class="stage">
             <div class="stageName">Minor</div>
-            <div class="badge" style="color:var(--minor)" id="minorBadge">4.19–5.19</div>
+            <div class="badge" style="color:var(--minor)">4.19–5.19</div>
           </div>
           <div class="stage">
             <div class="stageName">Moderate</div>
-            <div class="badge" style="color:var(--moderate)" id="moderateBadge">5.19–6.19</div>
+            <div class="badge" style="color:var(--moderate)">5.19–6.19</div>
           </div>
           <div class="stage">
             <div class="stageName">Major</div>
-            <div class="badge" style="color:var(--major)" id="majorBadge">≥ 6.19</div>
+            <div class="badge" style="color:var(--major)">≥ 6.19</div>
           </div>
         </div>
 
@@ -242,7 +265,7 @@
         <div style="height:12px"></div>
 
         <div class="hrow">
-          <h2>Annual tidal flooding counts (2000–2025)</h2>
+          <h2>Annual tidal flooding counts (2000–present)</h2>
         </div>
         <div class="chartWrap"><canvas id="annualChart"></canvas></div>
       </div>
@@ -252,7 +275,7 @@
 
     <div class="card">
       <div class="hrow">
-        <h2>72 hours: observations vs NOAA Cape May predictions (NAVD88)</h2>
+        <h2>72 hours: observations vs NOAA Cape May predictions</h2>
         <div class="kicker" style="text-transform:none">Observed: USGS 15-min · Predicted: NOAA CO-OPS</div>
       </div>
       <div class="chartWrapTall"><canvas id="tsChart"></canvas></div>
@@ -277,7 +300,7 @@
         <button class="btn" id="resetBtn">Reset</button>
       </div>
 
-      <div class="hint" id="histMeta">Loading…</div>
+      <div class="hint" id="histMeta">Loading historic index…</div>
 
       <div style="height:10px"></div>
 
@@ -293,6 +316,8 @@
           <tbody id="histBody"></tbody>
         </table>
       </div>
+
+      <div class="foot">This table uses an indexed peak list (fast) — not a 365-day window.</div>
     </div>
 
   </div>
@@ -303,23 +328,99 @@
 ========================= */
 const TZ="America/New_York";
 
+// USGS live observed
 const USGS_SITE="01412150";
-const PRIMARY_PARAM="72279";   // try tidal elevation
-const FALLBACK_PARAM="00065";  // fallback gage height
+const PRIMARY_PARAM="72279";  // tidal elevation (NOS-averaged)
+const FALLBACK_PARAM="00065"; // gage height fallback
 
+// Flood thresholds (ft)
 const THRESH={minorLow:4.19, moderateLow:5.19, majorLow:6.19};
 
+// NWS banner query point (near Bivalve)
 const ALERT_POINT={lat:39.2325, lon:-75.0380};
 
-// NOAA Cape May predictions pulled in MLLW then converted to NAVD88:
-const NOAA_STATION="8536110";
-const NOAA_PRED_INPUT_DATUM="MLLW";
-const MLLW_TO_NAVD88_OFFSET_FT=-2.77; // NAVD88 = MLLW - 2.77
-
-// Local repo files (optional — page will still work if missing)
-const TOP_TEN_JSON="data/top_ten.json";
-const ANNUAL_COUNTS_JSON="data/annual_counts.json";
+// Repo-built JSON paths
 const HIGH_TIDES_INDEX_JSON="data/high_tides_index.json";
+
+// NOAA Cape May predictions (MLLW -> NAVD88)
+// If your previous code already fetched NOAA predictions, keep it there.
+// Here we define the conversion for NAVD88.
+const NOAA_STATION="8536110";
+const NOAA_DATUM="MLLW"; // API returns in MLLW
+const MLLW_TO_NAVD88=-2.77; // NAVD88 = MLLW - 2.77
+
+// Top ten list (your provided values)
+const TOP_TEN=[
+  {date:"10-29-2012", ft:7.03},
+  {date:"11-25-1950", ft:6.60},
+  {date:"04-16-2011", ft:5.80},
+  {date:"08-04-2020", ft:5.67},
+  {date:"08-27-2011", ft:5.60},
+  {date:"01-23-2016", ft:5.58},
+  {date:"04-19-2022", ft:5.50},
+  {date:"08-21-????", ft:5.49},
+  {date:"10-26-2019", ft:5.41},
+  {date:"03-09-2024", ft:5.39}
+];
+
+/* =========================
+   Annual flooding (2000 → present; current year live)
+========================= */
+const START_YEAR=2000;
+const HIST_END_YEAR=2025;
+
+// Your historical baseline counts (2000–2025)
+const providedMinor=[0,0,1,20,13,25,19,16,20,29,25,30,23,20,23,11,23,34,40,44,35,31,14,41,65,38];
+const providedModerate=[0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,2,0,2,0,1,0,1,0,3,1];
+const providedMajor=providedMinor.map(()=>0);
+
+function buildAnnualRows(){
+  const nowY = new Date().getFullYear();
+  const rows=[];
+  for(let y=START_YEAR; y<=Math.max(HIST_END_YEAR, nowY); y++){
+    if(y<=HIST_END_YEAR){
+      const i=y-START_YEAR;
+      rows.push({y, minor:providedMinor[i]??0, moderate:providedModerate[i]??0, major:providedMajor[i]??0});
+    }else{
+      rows.push({y, minor:0, moderate:0, major:0});
+    }
+  }
+  return rows;
+}
+
+// Live-compute CURRENT YEAR counts from USGS YTD by event peaks
+async function computeCurrentYearFloodCounts(){
+  const y = new Date().getFullYear();
+  const start = new Date(Date.UTC(y,0,1,0,0,0)).toISOString();
+  const end = new Date().toISOString();
+
+  const series = await fetchWithFallback({startISO:start, endISO:end});
+  if(!series.length) return {y, minor:0, moderate:0, major:0};
+
+  let inEvent=false, peak=-Infinity;
+  let minor=0, moderate=0, major=0;
+
+  for(const p of series){
+    const ft=p.ft;
+    if(!inEvent){
+      if(ft>=THRESH.minorLow){ inEvent=true; peak=ft; }
+    }else{
+      if(ft>peak) peak=ft;
+      if(ft<THRESH.minorLow){
+        if(peak>=THRESH.majorLow) major++;
+        else if(peak>=THRESH.moderateLow) moderate++;
+        else if(peak>=THRESH.minorLow) minor++;
+        inEvent=false; peak=-Infinity;
+      }
+    }
+  }
+  if(inEvent){
+    if(peak>=THRESH.majorLow) major++;
+    else if(peak>=THRESH.moderateLow) moderate++;
+    else if(peak>=THRESH.minorLow) minor++;
+  }
+  return {y, minor, moderate, major};
+}
 
 /* =========================
    DOM
@@ -330,28 +431,33 @@ const monMaxFtEl=$("monMaxFt"), monMaxMetaEl=$("monMaxMeta");
 const dayMaxFtEl=$("dayMaxFt"), dayMaxMetaEl=$("dayMaxMeta");
 const dayMinFtEl=$("dayMinFt"), dayMinMetaEl=$("dayMinMeta");
 const stageTextEl=$("stageText"), stageDotEl=$("stageDot");
-const statusText=$("statusText");
 const nearPill=$("nearPill"), nearText=$("nearText"), nearChip=$("nearChip");
-const alertBanner=$("alertBanner"), alertTitle=$("alertTitle"), alertBody=$("alertBody"), alertLink=$("alertLink"), alertLinkWrap=$("alertLinkWrap");
+const alertBanner=$("alertBanner"), alertTitle=$("alertTitle"), alertBody=$("alertBody");
 const topTenBody=$("topTenBody");
 const tsNote=$("tsNote"), fcNote=$("fcNote");
 const histBody=$("histBody"), histMeta=$("histMeta");
 const minElevEl=$("minElev"), sortModeEl=$("sortMode");
+const lastUpdatedEl=$("lastUpdated");
 
 /* =========================
    Helpers
 ========================= */
-const isNum=v=>Number.isFinite(v);
-
 function fmtNY(iso){
   try{
     const d=new Date(iso);
-    return new Intl.DateTimeFormat("en-US",{timeZone:TZ,year:"numeric",month:"short",day:"2-digit",hour:"2-digit",minute:"2-digit"}).format(d);
+    return new Intl.DateTimeFormat("en-US",{
+      timeZone:TZ,year:"numeric",month:"short",day:"2-digit",hour:"2-digit",minute:"2-digit"
+    }).format(d);
   }catch{return iso;}
 }
 function getNYParts(date=new Date()){
-  const p=new Intl.DateTimeFormat("en-US",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(date);
-  return {y:+(p.find(x=>x.type==="year")?.value||0), m:+(p.find(x=>x.type==="month")?.value||0), d:+(p.find(x=>x.type==="day")?.value||0)};
+  const fmt=new Intl.DateTimeFormat("en-US",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit"});
+  const p=fmt.formatToParts(date);
+  return {
+    y:+(p.find(x=>x.type==="year")?.value||0),
+    m:+(p.find(x=>x.type==="month")?.value||0),
+    d:+(p.find(x=>x.type==="day")?.value||0)
+  };
 }
 function startOfTodayNY_ISO(){
   const {y,m,d}=getNYParts(new Date());
@@ -362,7 +468,6 @@ function startOfMonthNY_ISO(){
   return new Date(Date.UTC(y,m-1,1,0,0,0)).toISOString();
 }
 function nowISO(){ return new Date().toISOString(); }
-function ymd(d){ return d.toISOString().slice(0,10).replaceAll("-",""); }
 
 function classify(ft){
   if(ft>=THRESH.majorLow) return {label:"MAJOR FLOODING", color:"var(--major)", glow:"rgba(167,139,250,.22)", short:"Major"};
@@ -370,25 +475,15 @@ function classify(ft){
   if(ft>=THRESH.minorLow) return {label:"MINOR FLOODING", color:"var(--minor)", glow:"rgba(251,191,36,.22)", short:"Minor"};
   return {label:"BELOW FLOOD STAGE", color:"var(--ok)", glow:"rgba(45,212,191,.18)", short:"Below"};
 }
-function stageTag(ft){ const c=classify(ft); return {txt:c.short, c:c.color}; }
+function stageTag(ft){
+  const c=classify(ft);
+  return {txt:c.short, c:c.color};
+}
 function maxPoint(arr){ return arr.reduce((a,b)=>b.ft>a.ft?b:a, arr[0]); }
 function minPoint(arr){ return arr.reduce((a,b)=>b.ft<a.ft?b:a, arr[0]); }
 
 /* =========================
-   Fetch helpers (SAFE)
-========================= */
-async function fetchJSON(url){
-  const res=await fetch(url,{cache:"no-store"});
-  if(!res.ok) throw new Error(res.status+" "+url);
-  return res.json();
-}
-async function safeLoadJSON(path){
-  try{ return await fetchJSON(path); }
-  catch{ return null; }
-}
-
-/* =========================
-   USGS IV
+   USGS fetch
 ========================= */
 async function fetchIV({startISO=null,endISO=null,parameterCd=PRIMARY_PARAM,period=null}={}){
   const url=new URL("https://waterservices.usgs.gov/nwis/iv/");
@@ -401,21 +496,29 @@ async function fetchIV({startISO=null,endISO=null,parameterCd=PRIMARY_PARAM,peri
   if(startISO) url.searchParams.set("startDT",startISO);
   if(endISO) url.searchParams.set("endDT",endISO);
 
-  const j=await fetchJSON(url.toString());
-  const ts=j?.value?.timeSeries?.[0];
+  const res=await fetch(url.toString(),{cache:"no-store"});
+  if(!res.ok) throw new Error("USGS IV failed "+res.status);
+  return res.json();
+}
+function extractSeries(json){
+  const ts=json?.value?.timeSeries?.[0];
   const vals=ts?.values?.[0]?.value||[];
-  return vals.map(v=>({t:v.dateTime, ft:+v.value})).filter(p=>isNum(p.ft));
+  return vals.map(v=>({t:v.dateTime, ft:+v.value})).filter(p=>Number.isFinite(p.ft));
 }
 async function fetchWithFallback(opts){
-  let s=[];
-  try{ s=await fetchIV({...opts,parameterCd:PRIMARY_PARAM}); }catch{ s=[]; }
+  let j=await fetchIV({...opts,parameterCd:PRIMARY_PARAM});
+  let s=extractSeries(j);
   if(s.length) return s;
-  return fetchIV({...opts,parameterCd:FALLBACK_PARAM});
+  j=await fetchIV({...opts,parameterCd:FALLBACK_PARAM});
+  return extractSeries(j);
 }
 
 /* =========================
-   NOAA CO-OPS predictions (MLLW -> NAVD88)
+   NOAA predictions (Cape May) -> NAVD88
+   Uses CO-OPS datagetter. Returns MLLW values and converts by -2.77 ft.
 ========================= */
+function ymd(d){ return d.toISOString().slice(0,10).replaceAll("-",""); }
+
 async function fetchNOAA72h_NAVD88(){
   const now=new Date();
   const end=new Date(now.getTime()+72*3600*1000);
@@ -431,13 +534,16 @@ async function fetchNOAA72h_NAVD88(){
     units:"english",
     interval:"6",
     format:"json",
-    datum:NOAA_PRED_INPUT_DATUM
+    datum:NOAA_DATUM
   });
 
-  const j=await fetchJSON(base+"?"+qs.toString());
+  const res=await fetch(base+"?"+qs.toString(),{cache:"no-store"});
+  if(!res.ok) throw new Error("NOAA predictions failed "+res.status);
+  const j=await res.json();
+
   return (j?.predictions||[])
-    .map(r=>({t:r.t.replace(" ","T")+"Z", ft:(+r.v) + MLLW_TO_NAVD88_OFFSET_FT}))
-    .filter(p=>isNum(p.ft));
+    .map(r=>({t:r.t.replace(" ","T")+"Z", ft:(+r.v)+MLLW_TO_NAVD88}))
+    .filter(p=>Number.isFinite(p.ft));
 }
 
 /* =========================
@@ -446,40 +552,37 @@ async function fetchNOAA72h_NAVD88(){
 async function updateAlerts(){
   try{
     const url=`https://api.weather.gov/alerts/active?point=${ALERT_POINT.lat},${ALERT_POINT.lon}`;
-    const j=await fetchJSON(url);
+    const res=await fetch(url,{cache:"no-store"});
+    if(!res.ok) throw new Error("alerts "+res.status);
+    const j=await res.json();
     const feats=j?.features||[];
-    const coastal=feats.find(f=>((f?.properties?.event||"").toLowerCase().includes("coastal flood")));
+    const coastal=feats.find(f=>{
+      const e=(f?.properties?.event||"").toLowerCase();
+      return e.includes("coastal flood");
+    });
     if(!coastal){ alertBanner.style.display="none"; return; }
     const p=coastal.properties||{};
     alertTitle.textContent=p.event||"Coastal Flood Alert";
     const ends=p.ends?fmtNY(p.ends):(p.expires?fmtNY(p.expires):"—");
     alertBody.textContent=(p.headline?p.headline+" · ":"")+"Ends: "+ends;
-    const link=p.web||p.uri||p.id;
-    if(link){ alertLink.href=link; alertLinkWrap.style.display="inline"; }
-    else alertLinkWrap.style.display="none";
     alertBanner.style.display="block";
-  }catch{ alertBanner.style.display="none"; }
+  }catch{
+    alertBanner.style.display="none";
+  }
 }
 
 /* =========================
-   Top Ten render
+   Top ten render
 ========================= */
-function renderTopTen(rows){
+function renderTopTen(){
   topTenBody.innerHTML="";
-  if(!rows || !rows.length){
-    const tr=document.createElement("tr");
-    tr.innerHTML=`<td colspan="4" style="color:rgba(169,182,211,.9)">Top ten list not loaded.</td>`;
-    topTenBody.appendChild(tr);
-    return;
-  }
-  rows.forEach((r,i)=>{
-    const ft=+r.ft;
-    const t=stageTag(ft);
+  TOP_TEN.forEach((r,i)=>{
+    const t=stageTag(r.ft);
     const tr=document.createElement("tr");
     tr.innerHTML=`
-      <td><b>#${r.rank ?? (i+1)}</b></td>
+      <td><b>#${i+1}</b></td>
       <td>${r.date}</td>
-      <td><b>${ft.toFixed(2)}</b></td>
+      <td><b>${r.ft.toFixed(2)}</b></td>
       <td><span class="tag"><span class="chip" style="background:${t.c}"></span>${t.txt}</span></td>
     `;
     topTenBody.appendChild(tr);
@@ -487,51 +590,57 @@ function renderTopTen(rows){
 }
 
 /* =========================
-   Annual chart
+   Annual chart (2000–present; current year live)
 ========================= */
 let annualChart=null;
+
 function renderAnnualChart(rows){
-  const safeRows = (rows && rows.length) ? rows : [{year:"—",minor:0,moderate:0,major:0}];
-  const years=safeRows.map(r=>r.year);
-  const minor=safeRows.map(r=>+r.minor||0);
-  const moderate=safeRows.map(r=>+r.moderate||0);
-  const major=safeRows.map(r=>+r.major||0);
+  const labels=rows.map(r=>r.y);
+  const minor=rows.map(r=>r.minor);
+  const moderate=rows.map(r=>r.moderate);
+  const major=rows.map(r=>r.major);
 
   if(annualChart) annualChart.destroy();
   annualChart=new Chart($("annualChart"),{
     type:"bar",
-    data:{ labels:years, datasets:[
-      {label:"Minor",data:minor,stack:"f",borderWidth:0,backgroundColor:"rgba(251,191,36,.85)"},
-      {label:"Moderate",data:moderate,stack:"f",borderWidth:0,backgroundColor:"rgba(251,113,133,.80)"},
-      {label:"Major",data:major,stack:"f",borderWidth:0,backgroundColor:"rgba(167,139,250,.80)"}
-    ]},
+    data:{
+      labels,
+      datasets:[
+        {label:"Minor",data:minor,stack:"f",borderWidth:0,backgroundColor:"rgba(251,191,36,.85)"},
+        {label:"Moderate",data:moderate,stack:"f",borderWidth:0,backgroundColor:"rgba(251,113,133,.80)"},
+        {label:"Major",data:major,stack:"f",borderWidth:0,backgroundColor:"rgba(167,139,250,.80)"}
+      ]
+    },
     options:{
       responsive:true,maintainAspectRatio:false,
       plugins:{legend:{labels:{color:"rgba(234,240,255,.88)",font:{weight:"950"},boxWidth:16}}},
       scales:{
         x:{stacked:true,ticks:{color:"rgba(169,182,211,.9)",maxRotation:0,autoSkip:true,maxTicksLimit:8},grid:{color:"rgba(255,255,255,.06)"}},
-        y:{stacked:true,ticks:{color:"rgba(169,182,211,.9)"},grid:{color:"rgba(255,255,255,.06)"}}
+        y:{stacked:true,ticks:{color:"rgba(169,182,211,.9)",precision:0},grid:{color:"rgba(255,255,255,.06)"}}
       }
     }
   });
 }
 
 /* =========================
-   72h chart
+   72h chart (USGS obs + NOAA predictions)
 ========================= */
 let tsChart=null;
-function buildTsChart(obs, pred){
-  const labels=[...obs.map(p=>p.t), ...pred.map(p=>p.t)];
-  const obsData=[...obs.map(p=>p.ft), ...Array(pred.length).fill(null)];
-  const predData=[...Array(obs.length).fill(null), ...pred.map(p=>p.ft)];
+function buildTsChart(obs, fc){
+  const labels=[...obs.map(p=>p.t), ...fc.map(p=>p.t)];
+  const obsData=[...obs.map(p=>p.ft), ...Array(fc.length).fill(null)];
+  const fcData=[...Array(obs.length).fill(null), ...fc.map(p=>p.ft)];
 
   if(tsChart) tsChart.destroy();
   tsChart=new Chart($("tsChart"),{
     type:"line",
-    data:{ labels, datasets:[
-      {label:"Observed (Bivalve)",data:obsData,borderWidth:2,pointRadius:0,tension:.25},
-      {label:"Predicted (Cape May, NAVD88)",data:predData,borderWidth:2,pointRadius:0,borderDash:[6,5],tension:.25}
-    ]},
+    data:{
+      labels,
+      datasets:[
+        {label:"Observed (USGS)",data:obsData,borderWidth:2,pointRadius:0,tension:.25},
+        {label:"Predicted (NOAA Cape May, NAVD88)",data:fcData,borderWidth:2,pointRadius:0,borderDash:[6,5],tension:.25}
+      ]
+    },
     options:{
       responsive:true,maintainAspectRatio:false,
       plugins:{legend:{labels:{color:"rgba(234,240,255,.88)",font:{weight:"950"}}}},
@@ -540,8 +649,9 @@ function buildTsChart(obs, pred){
         x:{
           ticks:{
             color:"rgba(169,182,211,.9)",maxTicksLimit:6,
-            callback:(v,i)=>{
-              const n=labels.length, step=Math.max(1,Math.floor(n/6));
+            callback:(v,i)=> {
+              const n=labels.length;
+              const step=Math.max(1, Math.floor(n/6));
               return (i%step===0)?fmtNY(labels[i]):"";
             }
           },
@@ -552,15 +662,21 @@ function buildTsChart(obs, pred){
     }
   });
 
-  const o=obs.length?`Obs: ${fmtNY(obs[0].t)} → ${fmtNY(obs[obs.length-1].t)}`:"Obs: —";
-  const p=pred.length?`Pred: ${fmtNY(pred[0].t)} → ${fmtNY(pred[pred.length-1].t)}`:"Pred: unavailable";
-  fcNote.textContent = `${o} · ${p}`;
+  const obsMsg=obs.length?`Obs: ${fmtNY(obs[0].t)} → ${fmtNY(obs[obs.length-1].t)}`:"Obs: —";
+  const fcMsg=fc.length?`Pred (NAVD88): ${fmtNY(fc[0].t)} → ${fmtNY(fc[fc.length-1].t)}`:"Pred: unavailable";
+  fcNote.textContent=obsMsg+" · "+fcMsg;
 }
 
 /* =========================
-   Historic index: filter + last within ±0.2
+   Historic index (filter + last within ±0.2)
 ========================= */
-let HIGH_TIDES=[];
+let HIGH_TIDES=[]; // {t, ft}
+
+async function loadJSON(path){
+  const res=await fetch(path,{cache:"no-store"});
+  if(!res.ok) throw new Error("fetch "+path+" "+res.status);
+  return res.json();
+}
 
 function renderHist(rows){
   histBody.innerHTML="";
@@ -575,9 +691,7 @@ function renderHist(rows){
     `;
     histBody.appendChild(tr);
   }
-  histMeta.textContent = HIGH_TIDES.length
-    ? `Peaks: ${HIGH_TIDES.length.toLocaleString()} · Showing ${Math.min(80, rows.length)} of ${rows.length.toLocaleString()}`
-    : `Historic index not loaded.`;
+  histMeta.textContent=`Indexed peaks: ${HIGH_TIDES.length.toLocaleString()} · Showing ${Math.min(80, rows.length)} of ${rows.length.toLocaleString()}`;
 }
 
 function applyFilter(){
@@ -592,19 +706,14 @@ function applyFilter(){
   renderHist(rows);
 }
 
-function lastWithinDelta(currentFt, nowT){
-  if(currentFt < THRESH.moderateLow || !HIGH_TIDES.length) return null;
-  const delta=0.2, lo=currentFt-delta, hi=currentFt+delta;
-  const nowMs=nowT?new Date(nowT).getTime():Date.now();
-  let best=null;
-  for(const r of HIGH_TIDES){
-    const ms=new Date(r.t).getTime();
-    if(ms>=nowMs) continue;
-    if(r.ft>=lo && r.ft<=hi){
-      if(!best || ms>new Date(best.t).getTime()) best=r;
-    }
-  }
-  return best;
+function lastWithinDelta(currentFt){
+  if(currentFt < THRESH.moderateLow) return null;
+  const delta=0.2;
+  const lo=currentFt-delta, hi=currentFt+delta;
+  const hits=HIGH_TIDES
+    .filter(r=>r.ft>=lo && r.ft<=hi)
+    .sort((a,b)=>new Date(b.t)-new Date(a.t));
+  return hits.length?hits[0]:null;
 }
 
 /* =========================
@@ -618,93 +727,96 @@ function setStage(ft){
 }
 
 async function updateLive(){
-  const live=await fetchWithFallback({period:"P3D"});
-  if(!live.length) throw new Error("no live data");
-  const last=live[live.length-1];
+  const nowSeries=await fetchWithFallback({period:"P3D"});
+  if(!nowSeries.length) throw new Error("no live data");
 
-  $("curFt").textContent=last.ft.toFixed(2);
-  $("curMeta").textContent="Updated: "+fmtNY(last.t);
+  const last=nowSeries[nowSeries.length-1];
+
+  curFtEl.textContent=last.ft.toFixed(2);
+  curMetaEl.textContent="Updated: "+fmtNY(last.t);
+  if(lastUpdatedEl) lastUpdatedEl.textContent="Last updated: "+fmtNY(last.t);
   setStage(last.ft);
 
   const monthSeries=await fetchWithFallback({startISO:startOfMonthNY_ISO(), endISO:nowISO()});
   if(monthSeries.length){
     const mx=maxPoint(monthSeries);
-    $("monMaxFt").textContent=mx.ft.toFixed(2);
-    $("monMaxMeta").textContent="Max @ "+fmtNY(mx.t);
+    monMaxFtEl.textContent=mx.ft.toFixed(2);
+    monMaxMetaEl.textContent="Max @ "+fmtNY(mx.t);
   }else{
-    $("monMaxFt").textContent="—";
-    $("monMaxMeta").textContent="—";
+    monMaxFtEl.textContent="—";
+    monMaxMetaEl.textContent="No data this month.";
   }
 
   const daySeries=await fetchWithFallback({startISO:startOfTodayNY_ISO(), endISO:nowISO()});
   if(daySeries.length){
     const dmx=maxPoint(daySeries), dmn=minPoint(daySeries);
-    $("dayMaxFt").textContent=dmx.ft.toFixed(2);
-    $("dayMaxMeta").textContent="Max @ "+fmtNY(dmx.t);
-    $("dayMinFt").textContent=dmn.ft.toFixed(2);
-    $("dayMinMeta").textContent="Min @ "+fmtNY(dmn.t);
+    dayMaxFtEl.textContent=dmx.ft.toFixed(2);
+    dayMaxMetaEl.textContent="Max @ "+fmtNY(dmx.t);
+    dayMinFtEl.textContent=dmn.ft.toFixed(2);
+    dayMinMetaEl.textContent="Min @ "+fmtNY(dmn.t);
   }else{
-    $("dayMaxFt").textContent="—"; $("dayMaxMeta").textContent="—";
-    $("dayMinFt").textContent="—"; $("dayMinMeta").textContent="—";
+    dayMaxFtEl.textContent="—"; dayMaxMetaEl.textContent="No data today.";
+    dayMinFtEl.textContent="—"; dayMinMetaEl.textContent="No data today.";
   }
 
-  const hit=lastWithinDelta(last.ft, last.t);
+  // last within ±0.2 ft when >= moderate
+  const hit=lastWithinDelta(last.ft);
   if(hit){
     nearPill.style.display="inline-flex";
     nearChip.style.background=(last.ft>=THRESH.majorLow)?"var(--major)":"var(--moderate)";
     nearText.textContent=`Last within ±0.2 ft: ${hit.ft.toFixed(2)} ft · ${fmtNY(hit.t)}`;
-  }else nearPill.style.display="none";
+  }else{
+    nearPill.style.display="none";
+  }
 
-  statusText.textContent="Live updated: "+fmtNY(last.t);
-  tsNote.textContent=`Flood stages: Minor ${THRESH.minorLow.toFixed(2)}–${THRESH.moderateLow.toFixed(2)} · Moderate ${THRESH.moderateLow.toFixed(2)}–${THRESH.majorLow.toFixed(2)} · Major ≥ ${THRESH.majorLow.toFixed(2)} ft`;
+  tsNote.textContent = `Flood stages: Minor ${THRESH.minorLow.toFixed(2)}–${THRESH.moderateLow.toFixed(2)} · Moderate ${THRESH.moderateLow.toFixed(2)}–${THRESH.majorLow.toFixed(2)} · Major ≥ ${THRESH.majorLow.toFixed(2)} ft`;
+
+  return last;
 }
 
 /* =========================
-   72h series
+   Timeseries update (72h obs + 72h NOAA preds)
 ========================= */
 async function updateTimeseries(){
+  // Observations: last 72h
   const end=new Date();
   const start=new Date(end.getTime()-72*3600*1000);
   const obs=await fetchWithFallback({startISO:start.toISOString(), endISO:end.toISOString()});
 
-  let pred=[];
-  try{ pred=await fetchNOAA72h_NAVD88(); }catch{ pred=[]; }
+  // NOAA predictions (NAVD88 converted)
+  let fc=[];
+  try{ fc=await fetchNOAA72h_NAVD88(); }catch{ fc=[]; }
 
-  buildTsChart(obs, pred);
+  buildTsChart(obs, fc);
 }
 
 /* =========================
-   Boot (NO MORE CRASHING)
+   Boot
 ========================= */
 async function boot(){
-  stageTextEl.textContent="Loading…";
-  statusText.textContent="—";
+  renderTopTen();
+  await updateAlerts();
 
-  updateAlerts(); // don’t block on this
-
-  // Safe local loads (won’t crash)
-  const topTen = await safeLoadJSON(TOP_TEN_JSON);
-  const annual = await safeLoadJSON(ANNUAL_COUNTS_JSON);
-  const idx    = await safeLoadJSON(HIGH_TIDES_INDEX_JSON);
-
-  renderTopTen(Array.isArray(topTen)?topTen:(topTen?.rows||[]));
-  renderAnnualChart(Array.isArray(annual)?annual:(annual?.rows||[]));
-
-  HIGH_TIDES=(idx?.peaks||[]).map(p=>({t:p.t, ft:+p.ft})).filter(p=>isNum(p.ft));
+  // load historic index
+  const idx=await loadJSON(HIGH_TIDES_INDEX_JSON);
+  HIGH_TIDES=(idx?.peaks||[]).map(p=>({t:p.t, ft:+p.ft})).filter(p=>Number.isFinite(p.ft));
+  HIGH_TIDES.sort((a,b)=>new Date(b.t)-new Date(a.t));
   applyFilter();
 
-  // Live + TS should still run even if local files missing
+  // Annual baseline always full 2000 → present
+  let rows=buildAnnualRows();
+  renderAnnualChart(rows);
+
+  // Live update
+  await updateLive();
+  await updateTimeseries();
+
+  // live-update current year on annual chart
   try{
-    await updateLive();
-    await updateTimeseries();
-  }catch(e){
-    console.error(e);
-    stageTextEl.textContent="LIVE DATA UNAVAILABLE";
-    stageDotEl.style.background="rgba(169,182,211,.65)";
-    stageDotEl.style.boxShadow="0 0 0 4px rgba(169,182,211,.18)";
-    statusText.textContent="Could not load live data.";
-    fcNote.textContent="—";
-  }
+    const liveY=await computeCurrentYearFloodCounts();
+    rows = rows.map(r => (r.y===liveY.y ? liveY : r));
+    renderAnnualChart(rows);
+  }catch{}
 }
 
 $("applyBtn").addEventListener("click", applyFilter);
@@ -714,8 +826,15 @@ $("resetBtn").addEventListener("click", ()=>{
   applyFilter();
 });
 
-boot();
-setInterval(()=>boot(), 5*60*1000);
+boot().catch(err=>{
+  console.error(err);
+  stageTextEl.textContent="LIVE DATA UNAVAILABLE";
+  if(lastUpdatedEl) lastUpdatedEl.textContent="Last updated: —";
+  histMeta.textContent="Could not load historic index.";
+});
+
+// refresh every 5 minutes
+setInterval(()=>boot().catch(()=>{}), 5*60*1000);
 </script>
 </body>
 </html>
