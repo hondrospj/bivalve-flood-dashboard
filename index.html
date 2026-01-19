@@ -56,12 +56,12 @@
     }
     .dot{width:9px;height:9px;border-radius:999px;background:var(--ok);box-shadow:0 0 0 4px rgba(45,212,191,.16)}
 
-    /* ====== SPACE OPTIMIZATION: equal-height top cards ====== */
+    /* FIX: remove forced equal-height stretching (this is the "big gap") */
     .grid{
       display:grid;
       grid-template-columns:1.15fr .85fr;
       gap:12px;
-      align-items:stretch;       /* key */
+      align-items:start; /* <— key */
     }
     @media(max-width:980px){.grid{grid-template-columns:1fr}}
 
@@ -73,8 +73,6 @@
       padding:12px;
       overflow:hidden;
       position:relative;
-      display:flex;
-      flex-direction:column;     /* key for distribution */
     }
     .card:before{
       content:"";position:absolute;inset:-1px;pointer-events:none;opacity:.9;
@@ -89,7 +87,7 @@
       margin:0;font-size:12.5px;letter-spacing:.22px;text-transform:uppercase;color:var(--muted);font-weight:950
     }
 
-    /* ====== CENTER TEXT IN PANELS ====== */
+    /* centered panel text */
     .metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
     @media(max-width:720px){.metrics{grid-template-columns:1fr}}
     .metric{
@@ -108,7 +106,7 @@
     .subCap{color:var(--muted);font-weight:950;font-size:11px;letter-spacing:.2px;text-transform:uppercase}
     .bigNum{font-size:28px;font-weight:950;letter-spacing:.2px}
 
-    /* stages: centered, no overlap */
+    /* FIX: stage overlap — allow wrap, center, no collision */
     .stages{
       display:grid;
       grid-template-columns:repeat(3, minmax(0,1fr));
@@ -158,11 +156,8 @@
     .btn{cursor:pointer}
     .btn:hover{filter:brightness(1.06)}
     .hint{color:var(--muted);font-size:12.5px;line-height:1.25}
-
-    /* remove blank space: let left card fill nicely */
-    .liveFill{flex:1 1 auto; display:flex; flex-direction:column}
-    .pushDown{margin-top:auto}
     .thinNote{margin-top:8px;color:var(--muted);font-size:12.5px;line-height:1.25;text-align:center}
+    .centerMsg{padding:12px;text-align:center;color:var(--muted);font-weight:950}
   </style>
 </head>
 
@@ -200,38 +195,36 @@
           <div id="statusText" class="kicker" style="text-transform:none">—</div>
         </div>
 
-        <div class="liveFill">
-          <div class="metrics">
-            <div class="metric">
-              <div class="ml">Current water elevation</div>
-              <div class="mv"><span id="curFt">—</span><span class="unit">ft</span></div>
-              <div class="ms" id="curMeta">—</div>
-            </div>
-
-            <div class="metric">
-              <div class="ml">Monthly maximum</div>
-              <div class="mv"><span id="monMaxFt">—</span><span class="unit">ft</span></div>
-              <div class="ms" id="monMaxMeta">—</div>
-            </div>
-
-            <div class="metric" style="grid-column:1 / -1">
-              <div class="ml">Daily range (today)</div>
-              <div class="splitRow">
-                <div><div class="subCap">Max</div><span class="bigNum" id="dayMaxFt">—</span> <span class="unit">ft</span></div>
-                <div><div class="subCap">Min</div><span class="bigNum" id="dayMinFt">—</span> <span class="unit">ft</span></div>
-              </div>
-              <div class="ms" id="dayRangeMeta">—</div>
-            </div>
+        <div class="metrics">
+          <div class="metric">
+            <div class="ml">Current water elevation</div>
+            <div class="mv"><span id="curFt">—</span><span class="unit">ft</span></div>
+            <div class="ms" id="curMeta">—</div>
           </div>
 
-          <div class="stages pushDown" aria-label="Flood stages">
-            <div class="stage"><div class="stageName">Minor</div><div class="badge" style="color:var(--minor)">4.19–5.19</div></div>
-            <div class="stage"><div class="stageName">Moderate</div><div class="badge" style="color:var(--moderate)">5.19–6.19</div></div>
-            <div class="stage"><div class="stageName">Major</div><div class="badge" style="color:var(--major)">≥ 6.19</div></div>
+          <div class="metric">
+            <div class="ml">Monthly maximum</div>
+            <div class="mv"><span id="monMaxFt">—</span><span class="unit">ft</span></div>
+            <div class="ms" id="monMaxMeta">—</div>
           </div>
 
-          <div class="thinNote" id="tsNote">—</div>
+          <div class="metric" style="grid-column:1 / -1">
+            <div class="ml">Daily range (today)</div>
+            <div class="splitRow">
+              <div><div class="subCap">Max</div><span class="bigNum" id="dayMaxFt">—</span> <span class="unit">ft</span></div>
+              <div><div class="subCap">Min</div><span class="bigNum" id="dayMinFt">—</span> <span class="unit">ft</span></div>
+            </div>
+            <div class="ms" id="dayRangeMeta">—</div>
+          </div>
         </div>
+
+        <div class="stages" aria-label="Flood stages">
+          <div class="stage"><div class="stageName">Minor</div><div class="badge" style="color:var(--minor)">4.19–5.19</div></div>
+          <div class="stage"><div class="stageName">Moderate</div><div class="badge" style="color:var(--moderate)">5.19–6.19</div></div>
+          <div class="stage"><div class="stageName">Major</div><div class="badge" style="color:var(--major)">≥ 6.19</div></div>
+        </div>
+
+        <div class="thinNote" id="tsNote">—</div>
       </div>
 
       <!-- RIGHT -->
@@ -264,7 +257,7 @@
     <div class="card">
       <div class="hrow">
         <h2>72 hours: observations vs Cape May predictions (NAVD88)</h2>
-        <div class="kicker" style="text-transform:none">Time shown in Eastern Time</div>
+        <div class="kicker" style="text-transform:none">Times shown in Eastern Time</div>
       </div>
       <div class="chartWrapTall"><canvas id="tsChart"></canvas></div>
       <div class="thinNote" id="fcNote">—</div>
@@ -290,7 +283,7 @@
 
       <div style="height:10px"></div>
 
-      <div class="table">
+      <div class="table" id="histTableWrap">
         <table aria-label="Historic tides above threshold">
           <thead>
             <tr>
@@ -302,6 +295,8 @@
           <tbody id="histBody"></tbody>
         </table>
       </div>
+
+      <div class="centerMsg" id="histEmpty" style="display:none">—</div>
     </div>
 
   </div>
@@ -310,12 +305,13 @@
 /* =========================
    CONFIG
 ========================= */
-const TZ="America/New_York"; // Eastern Time (EST/EDT automatically)
+const TZ="America/New_York"; // ET (EST/EDT)
 const USGS_SITE="01412150";
 const PRIMARY_PARAM="72279";
 const FALLBACK_PARAM="00065";
 const THRESH={minorLow:4.19, moderateLow:5.19, majorLow:6.19};
 const ALERT_POINT={lat:39.2325, lon:-75.0380};
+
 const NOAA_STATION="8536110";
 const MLLW_TO_NAVD88=-2.77;
 
@@ -350,31 +346,34 @@ const alertBanner=$("alertBanner"), alertTitle=$("alertTitle"), alertBody=$("ale
 const topTenBody=$("topTenBody");
 const tsNote=$("tsNote"), fcNote=$("fcNote");
 const histBody=$("histBody"), histMeta=$("histMeta");
+const histTableWrap=$("histTableWrap"), histEmpty=$("histEmpty");
 const minElevEl=$("minElev"), sortModeEl=$("sortMode");
 
 /* =========================
-   TIME: Eastern Time everywhere
+   TIME (ET): normalize timestamps before formatting
 ========================= */
-const dtfNY = new Intl.DateTimeFormat("en-US",{
+const dtfET = new Intl.DateTimeFormat("en-US",{
   timeZone:TZ, year:"numeric", month:"short", day:"2-digit",
   hour:"2-digit", minute:"2-digit"
 });
+function normalizeISO(s){
+  if(!s) return s;
+  let t=String(s).trim();
+  if(t.includes(" ")) t=t.replace(" ","T");         // "YYYY-MM-DD HH:MM" -> ISO-ish
+  // If no timezone suffix, force UTC "Z" so ET conversion is stable:
+  if(!/[zZ]$/.test(t) && !/[+-]\d\d:\d\d$/.test(t)) t += "Z";
+  return t;
+}
 function fmtET(iso){
-  try{ return dtfNY.format(new Date(iso)); }catch{ return iso; }
+  try{ return dtfET.format(new Date(normalizeISO(iso))); }catch{ return iso; }
 }
 function nowISO(){ return new Date().toISOString(); }
 function getNYParts(date=new Date()){
   const p=new Intl.DateTimeFormat("en-US",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(date);
   return { y:+p.find(x=>x.type==="year").value, m:+p.find(x=>x.type==="month").value, d:+p.find(x=>x.type==="day").value };
 }
-function startOfTodayNY_ISO(){
-  const {y,m,d}=getNYParts();
-  return new Date(Date.UTC(y,m-1,d,0,0,0)).toISOString();
-}
-function startOfMonthNY_ISO(){
-  const {y,m}=getNYParts();
-  return new Date(Date.UTC(y,m-1,1,0,0,0)).toISOString();
-}
+function startOfTodayNY_ISO(){ const {y,m,d}=getNYParts(); return new Date(Date.UTC(y,m-1,d,0,0,0)).toISOString(); }
+function startOfMonthNY_ISO(){ const {y,m}=getNYParts(); return new Date(Date.UTC(y,m-1,1,0,0,0)).toISOString(); }
 
 /* =========================
    Classification
@@ -389,7 +388,7 @@ const maxPoint=arr=>arr.reduce((a,b)=>b.ft>a.ft?b:a, arr[0]);
 const minPoint=arr=>arr.reduce((a,b)=>b.ft<a.ft?b:a, arr[0]);
 
 /* =========================
-   USGS fetch (minimal)
+   USGS fetch
 ========================= */
 async function fetchIV({startISO=null,endISO=null,parameterCd=PRIMARY_PARAM,period=null}={}){
   const u=new URL("https://waterservices.usgs.gov/nwis/iv/");
@@ -407,7 +406,7 @@ async function fetchIV({startISO=null,endISO=null,parameterCd=PRIMARY_PARAM,peri
 }
 function extractSeries(j){
   const vals=j?.value?.timeSeries?.[0]?.values?.[0]?.value||[];
-  return vals.map(v=>({t:v.dateTime, ft:+v.value})).filter(p=>Number.isFinite(p.ft));
+  return vals.map(v=>({t:v.dateTime, ft:+v.value})).filter(p=>p.t && Number.isFinite(p.ft));
 }
 async function fetchWithFallback(opts){
   let s=extractSeries(await fetchIV({...opts,parameterCd:PRIMARY_PARAM}));
@@ -416,7 +415,7 @@ async function fetchWithFallback(opts){
 }
 
 /* =========================
-   NOAA predictions -> NAVD88
+   NOAA predictions (MLLW -> NAVD88)
 ========================= */
 const ymd=d=>d.toISOString().slice(0,10).replaceAll("-","");
 async function fetchNOAA72h_NAVD88(){
@@ -431,8 +430,8 @@ async function fetchNOAA72h_NAVD88(){
   if(!r.ok) throw new Error("NOAA "+r.status);
   const j=await r.json();
   return (j?.predictions||[])
-    .map(p=>({t:p.t.replace(" ","T")+"Z", ft:(+p.v)+MLLW_TO_NAVD88}))
-    .filter(p=>Number.isFinite(p.ft));
+    .map(p=>({t: (p.t.includes("T")?p.t:p.t.replace(" ","T"))+"Z", ft:(+p.v)+MLLW_TO_NAVD88}))
+    .filter(p=>p.t && Number.isFinite(p.ft));
 }
 
 /* =========================
@@ -472,7 +471,7 @@ function renderTopTen(){
 }
 
 /* =========================
-   Annual chart (fast)
+   Annual chart
 ========================= */
 let annualChart=null;
 function buildAnnualRows(){
@@ -537,7 +536,7 @@ function renderAnnualChart(rows){
 }
 
 /* =========================
-   72h chart (ET labels)
+   72h chart (ET labels + tooltip title)
 ========================= */
 let tsChart=null;
 function buildTsChart(obs,fc){
@@ -556,11 +555,7 @@ function buildTsChart(obs,fc){
       responsive:true,maintainAspectRatio:false,
       plugins:{
         legend:{labels:{color:"rgba(234,240,255,.88)",font:{weight:"950"}}},
-        tooltip:{
-          callbacks:{
-            title:(items)=> items?.[0]?.label ? fmtET(items[0].label) : ""
-          }
-        }
+        tooltip:{callbacks:{title:(items)=> items?.[0]?.label ? fmtET(items[0].label) : ""}}
       },
       interaction:{mode:"index",intersect:false},
       scales:{
@@ -579,30 +574,63 @@ function buildTsChart(obs,fc){
 }
 
 /* =========================
-   Historic index (path-safe on GitHub Pages)
+   Historic index (FIX: try multiple deployed paths)
 ========================= */
 let HIGH_TIDES=[];
-function historicURL(){
-  const u=new URL("data/high_tides_index.json", document.baseURI);
+function makeURL(rel){
+  const u=new URL(rel, document.baseURI);
   u.searchParams.set("v", Date.now().toString(36));
   return u.toString();
 }
+async function tryFetchJSON(url){
+  const r=await fetch(url,{cache:"no-store"});
+  if(!r.ok) throw new Error("HTTP "+r.status);
+  return r.json();
+}
 async function loadHistoricIndex(){
   histMeta.textContent="Loading historic index…";
-  try{
-    const r=await fetch(historicURL(),{cache:"no-store"});
-    if(!r.ok) throw new Error("HTTP "+r.status);
-    const j=await r.json();
-    const raw=j?.peaks || j?.points || [];
-    HIGH_TIDES = raw.map(p=>({t:p.t, ft:+p.ft})).filter(p=>p.t && Number.isFinite(p.ft));
-    HIGH_TIDES.sort((a,b)=>new Date(b.t)-new Date(a.t));
-    applyFilter();
-  }catch{
-    HIGH_TIDES=[];
-    histBody.innerHTML="";
-    histMeta.textContent="Historic tides unavailable. Confirm data/high_tides_index.json exists in your repo.";
+  histEmpty.style.display="none";
+  histTableWrap.style.display="block";
+
+  const candidates=[
+    "data/high_tides_index.json",
+    "./data/high_tides_index.json",
+    "data/high_tides_index.JSON",
+    "./data/high_tides_index.JSON",
+    "high_tides_index.json",
+    "./high_tides_index.json"
+  ].map(makeURL);
+
+  let lastErr="";
+
+  for(const url of candidates){
+    try{
+      const j=await tryFetchJSON(url);
+      const raw=j?.peaks || j?.points || [];
+      HIGH_TIDES = raw
+        .map(p=>({t: normalizeISO(p.t), ft:+p.ft}))
+        .filter(p=>p.t && Number.isFinite(p.ft));
+
+      if(!HIGH_TIDES.length) throw new Error("No peaks found in file");
+
+      HIGH_TIDES.sort((a,b)=>new Date(b.t)-new Date(a.t));
+      applyFilter();
+      return;
+    }catch(e){
+      lastErr = String(e?.message||e);
+    }
   }
+
+  // If all failed:
+  HIGH_TIDES=[];
+  histBody.innerHTML="";
+  histTableWrap.style.display="none";
+  histEmpty.style.display="block";
+  histEmpty.textContent="Historic tides unavailable.";
+  histMeta.textContent="Could not load historic index. Tried: " + candidates.map(u=>new URL(u).pathname).join(" · ");
 }
+
+/* filter + render */
 function renderHist(rows){
   histBody.innerHTML="";
   const show=rows.slice(0,80);
@@ -619,7 +647,7 @@ function renderHist(rows){
   histMeta.textContent=`Indexed peaks: ${HIGH_TIDES.length.toLocaleString()} · Showing ${Math.min(80, rows.length)} of ${rows.length.toLocaleString()}`;
 }
 function applyFilter(){
-  if(!HIGH_TIDES.length){ return; }
+  if(!HIGH_TIDES.length) return;
   const min=+minElevEl.value||THRESH.minorLow;
   const mode=sortModeEl.value;
 
@@ -673,7 +701,6 @@ async function updateLive(){
   statusText.textContent="";
   tsNote.textContent=`Flood stages: Minor ${THRESH.minorLow.toFixed(2)}–${THRESH.moderateLow.toFixed(2)} · Moderate ${THRESH.moderateLow.toFixed(2)}–${THRESH.majorLow.toFixed(2)} · Major ≥ ${THRESH.majorLow.toFixed(2)} ft`;
 }
-
 async function updateTimeseries(){
   const end=new Date(), start=new Date(end.getTime()-72*3600*1000);
   const obs=await fetchWithFallback({startISO:start.toISOString(), endISO:end.toISOString()});
@@ -683,7 +710,7 @@ async function updateTimeseries(){
 }
 
 /* =========================
-   Boot (optimized)
+   Boot
 ========================= */
 let annualRows=null;
 async function boot(){
