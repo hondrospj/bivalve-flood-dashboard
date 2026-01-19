@@ -307,15 +307,12 @@ const ALERT_POINT={lat:39.2325, lon:-75.0380};
 const NOAA_STATION="8536110";
 const MLLW_TO_NAVD88=-2.77;
 
-/* Historic all-tides query settings:
-   - USGS may limit huge requests. We'll try long-range first, then fall back.
-   - MAX_STORE: hard cap stored points to keep browser snappy.
-*/
+/* Historic all-tides query settings */
 const HIST_START_ISO="1900-01-01T00:00:00Z";
 const HIST_FALLBACK_DAYS=[3650, 1825, 1095, 730, 365]; // 10y,5y,3y,2y,1y
-const MAX_STORE=120000;   // cap points in memory
-const MAX_RENDER=120;     // rows shown
-const HIST_SAMPLE_STRIDE=1; // if you want faster: set 2,3,4... to sample every N points
+const MAX_STORE=120000;
+const MAX_RENDER=120;
+const HIST_SAMPLE_STRIDE=1;
 
 /* Top ten */
 const TOP_TEN=[
@@ -331,7 +328,7 @@ const TOP_TEN=[
   {date:"03-09-2024", ft:5.39}
 ];
 
-/* Annual (your provided) */
+/* Annual */
 const START_YEAR=2000;
 const providedMinor=[0,0,1,20,13,25,19,16,20,29,25,30,23,20,23,11,23,34,40,44,35,31,14,41,65,38];
 const providedModerate=[0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,2,0,2,0,1,0,1,0,3,1];
@@ -408,21 +405,52 @@ async function fetchWithFallback(opts){
   return extractSeries(await fetchIV({...opts,parameterCd:FALLBACK_PARAM}));
 }
 
-/* ===== NOAA predictions (MLLW -> NAVD88) ===== */
-const ymd=d=>d.toISOString().slice(0,10).replaceAll("-","");
-async function fetchNOAA72h_NAVD88(){
-  const now=new Date(), end=new Date(now.getTime()+72*3600*1000);
+/* ===== NOAA predictions (MLLW -> NAVD88) =====
+   FIX:
+   - Use begin_date/end_date WITH TIME (UTC) so predictions start near "now", not 00:00 UTC.
+*/
+function pad2(n){return String(n).padStart(2,"0");}
+function ymdhmUTC(d){
+  return (
+    d.getUTCFullYear() +
+    pad2(d.getUTCMonth()+1) +
+    pad2(d.getUTCDate()) + " " +
+    pad2(d.getUTCHours()) + ":" +
+    pad2(d.getUTCMinutes())
+  );
+}
+function roundToMinutesUTC(d, step){
+  const ms=d.getTime();
+  const m=step*60*1000;
+  return new Date(Math.floor(ms/m)*m);
+}
+async function fetchNOAA72h_NAVD88(beginUTC){
   const base="https://api.tidesandcurrents.noaa.gov/api/prod/datagetter";
+  const begin = roundToMinutesUTC(beginUTC ?? new Date(), 6); // align to 6-min grid
+  const end = new Date(begin.getTime()+72*3600*1000);
+
   const qs=new URLSearchParams({
-    product:"predictions", application:"cupajoe", station:NOAA_STATION,
-    begin_date:ymd(now), end_date:ymd(end),
-    time_zone:"gmt", units:"english", interval:"6", format:"json", datum:"MLLW"
+    product:"predictions",
+    application:"cupajoe",
+    station:NOAA_STATION,
+    begin_date: ymdhmUTC(begin),    // <-- timestamp
+    end_date:   ymdhmUTC(end),      // <-- timestamp
+    time_zone:"gmt",
+    units:"english",
+    interval:"6",
+    format:"json",
+    datum:"MLLW"
   });
+
   const r=await fetch(base+"?"+qs.toString(),{cache:"no-store"});
   if(!r.ok) throw new Error("NOAA "+r.status);
   const j=await r.json();
+
   return (j?.predictions||[])
-    .map(p=>({t:(p.t.includes("T")?p.t:p.t.replace(" ","T"))+"Z", ft:(+p.v)+MLLW_TO_NAVD88}))
+    .map(p=>{
+      const t=(p.t.includes("T")?p.t:p.t.replace(" ","T"))+"Z"; // UTC
+      return {t, ft:(+p.v)+MLLW_TO_NAVD88};
+    })
     .filter(p=>p.t && Number.isFinite(p.ft));
 }
 
@@ -497,44 +525,61 @@ function renderAnnualChart(rows){
   });
 }
 
-/* ===== 72h chart ===== */
+/* ===== 72h chart =====
+   FIX:
+   - Use a true numeric time axis (ms since epoch)
+   - Predictions trimmed so they begin AFTER last observation timestamp
+*/
 let tsChart=null;
-function buildTsChart(obs,fc){
-  const labels=[...obs.map(p=>p.t),...fc.map(p=>p.t)];
-  const obsData=[...obs.map(p=>p.ft),...Array(fc.length).fill(null)];
-  const fcData=[...Array(obs.length).fill(null),...fc.map(p=>p.ft)];
+function toMs(iso){ return Date.parse(normalizeISO(iso)); }
+
+function buildTsChart(obs, fc){
+  const obsPts = obs.map(p=>({x:toMs(p.t), y:p.ft})).filter(p=>Number.isFinite(p.x)&&Number.isFinite(p.y));
+  const fcPts  = fc.map(p=>({x:toMs(p.t), y:p.ft})).filter(p=>Number.isFinite(p.x)&&Number.isFinite(p.y));
 
   if(tsChart) tsChart.destroy();
   tsChart=new Chart($("tsChart"),{
     type:"line",
-    data:{labels,datasets:[
-      {label:"Observed (USGS)",data:obsData,borderWidth:2,pointRadius:0,tension:.25},
-      {label:"Predicted (Cape May, NAVD88)",data:fcData,borderWidth:2,pointRadius:0,borderDash:[6,5],tension:.25}
-    ]},
+    data:{
+      datasets:[
+        {label:"Observed (USGS)", data:obsPts, borderWidth:2, pointRadius:0, tension:.25},
+        {label:"Predicted (Cape May, NAVD88)", data:fcPts, borderWidth:2, pointRadius:0, borderDash:[6,5], tension:.25}
+      ]
+    },
     options:{
       responsive:true,maintainAspectRatio:false,
       plugins:{
         legend:{labels:{color:"rgba(234,240,255,.88)",font:{weight:"950"}}},
-        tooltip:{callbacks:{title:(items)=> items?.[0]?.label ? fmtET(items[0].label) : ""}}
+        tooltip:{
+          callbacks:{
+            title:(items)=> items?.[0]?.parsed?.x ? fmtET(new Date(items[0].parsed.x).toISOString()) : ""
+          }
+        }
       },
       interaction:{mode:"index",intersect:false},
+      parsing:false,
       scales:{
-        x:{ticks:{color:"rgba(169,182,211,.9)",maxTicksLimit:6,callback:(v,i)=>{
-          const step=Math.max(1,Math.floor(labels.length/6));
-          return (i%step===0)?fmtET(labels[i]):"";
-        }},grid:{color:"rgba(255,255,255,.06)"}},
+        x:{
+          type:"linear",
+          ticks:{
+            color:"rgba(169,182,211,.9)",
+            maxTicksLimit:7,
+            callback:(v)=> fmtET(new Date(v).toISOString())
+          },
+          grid:{color:"rgba(255,255,255,.06)"}
+        },
         y:{ticks:{color:"rgba(169,182,211,.9)"},grid:{color:"rgba(255,255,255,.06)"}}
       }
     }
   });
 
-  const o=obs.length?`Obs: ${fmtET(obs[0].t)} → ${fmtET(obs[obs.length-1].t)}`:"Obs: —";
-  const f=fc.length?`Pred: ${fmtET(fc[0].t)} → ${fmtET(fc[fc.length-1].t)}`:"Pred: unavailable";
-  fcNote.textContent=o+" · "+f;
+  const obsMsg=obs.length?`Obs: ${fmtET(obs[0].t)} → ${fmtET(obs[obs.length-1].t)}`:"Obs: —";
+  const fcMsg=fc.length?`Pred: ${fmtET(fc[0].t)} → ${fmtET(fc[fc.length-1].t)}`:"Pred: unavailable";
+  fcNote.textContent=obsMsg+" · "+fcMsg;
 }
 
-/* ===== Historic ALL tides filter (15-min readings) ===== */
-let HIST_SERIES=[]; // {t,ft}
+/* ===== Historic ALL tides filter ===== */
+let HIST_SERIES=[];
 function compactSeries(series){
   if(series.length<=MAX_STORE) return series;
   const stride=Math.ceil(series.length / MAX_STORE);
@@ -543,21 +588,9 @@ function compactSeries(series){
   return out;
 }
 async function fetchHistoricAllTides(){
-  // Try very long range; if USGS limits, fall back to shorter windows.
   const end=nowISO();
-
-  const tryFetch = async (startISO)=>{
-    const s=await fetchWithFallback({startISO, endISO:end});
-    return s;
-  };
-
-  // 1) long-range attempt
-  try{
-    const big=await tryFetch(HIST_START_ISO);
-    if(big.length) return big;
-  }catch{}
-
-  // 2) fallbacks
+  const tryFetch = async (startISO)=> fetchWithFallback({startISO, endISO:end});
+  try{ const big=await tryFetch(HIST_START_ISO); if(big.length) return big; }catch{}
   for(const days of HIST_FALLBACK_DAYS){
     try{
       const start=new Date(Date.now()-days*86400*1000).toISOString();
@@ -567,7 +600,6 @@ async function fetchHistoricAllTides(){
   }
   return [];
 }
-
 function renderHist(rows){
   histBody.innerHTML="";
   const show=rows.slice(0,MAX_RENDER);
@@ -583,20 +615,14 @@ function renderHist(rows){
   }
   histMeta.textContent=`Loaded readings: ${HIST_SERIES.length.toLocaleString()} · Showing ${Math.min(MAX_RENDER, rows.length)} of ${rows.length.toLocaleString()}`;
 }
-
 function applyHistFilter(){
-  if(!HIST_SERIES.length){
-    histMeta.textContent="Historic tides unavailable.";
-    return;
-  }
+  if(!HIST_SERIES.length){ histMeta.textContent="Historic tides unavailable."; return; }
   const min=+minElevEl.value || THRESH.minorLow;
   const mode=sortModeEl.value;
-
   let rows=HIST_SERIES.filter(r=>r.ft>=min);
   if(mode==="desc") rows.sort((a,b)=>b.ft-a.ft);
   if(mode==="asc") rows.sort((a,b)=>a.ft-b.ft);
   if(mode==="recent") rows.sort((a,b)=>new Date(b.t)-new Date(a.t));
-
   renderHist(rows);
 }
 
@@ -607,7 +633,6 @@ function setStage(ft){
   stageDotEl.style.background=s.c;
   stageDotEl.style.boxShadow=`0 0 0 4px ${s.g}`;
 }
-
 async function updateLive(){
   const nowSeries=await fetchWithFallback({period:"P3D"});
   if(!nowSeries.length) throw new Error("no live data");
@@ -637,37 +662,42 @@ async function updateLive(){
   }else{
     dayMaxFtEl.textContent="—"; dayMinFtEl.textContent="—"; dayRangeMetaEl.textContent="—";
   }
+
+  return last; // return latest obs point
 }
 
-async function updateTimeseries(){
+async function updateTimeseries(latestObs){
   const end=new Date(), start=new Date(end.getTime()-72*3600*1000);
   const obs=await fetchWithFallback({startISO:start.toISOString(), endISO:end.toISOString()});
+
+  // anchor predictions to "now" but also ensure they begin AFTER last obs timestamp
+  const obsLast = latestObs?.t ? new Date(normalizeISO(latestObs.t)) : (obs.length ? new Date(normalizeISO(obs[obs.length-1].t)) : new Date());
   let fc=[];
-  try{ fc=await fetchNOAA72h_NAVD88(); }catch{ fc=[]; }
-  buildTsChart(obs,fc);
+  try{
+    fc=await fetchNOAA72h_NAVD88(new Date()); // start at current UTC time (rounded)
+  }catch{ fc=[]; }
+
+  const cutoff = obsLast.getTime();
+  fc = fc.filter(p=> toMs(p.t) >= cutoff);
+
+  buildTsChart(obs, fc);
 }
 
 /* ===== Boot ===== */
 async function boot(){
   renderTopTen();
   updateAlerts();
-
   renderAnnualChart(buildAnnualRows());
 
-  // Historic all-tides
+  // Historic all-tides (unchanged)
   histMeta.textContent="Loading historic 15-min readings…";
   histEmpty.style.display="none";
   histTableWrap.style.display="block";
-
   fetchHistoricAllTides().then(series=>{
     if(!series.length) throw new Error("no historic data returned");
-
-    // optional sampling stride
     const sampled = (HIST_SAMPLE_STRIDE>1) ? series.filter((_,i)=>i%HIST_SAMPLE_STRIDE===0) : series;
-
     HIST_SERIES = compactSeries(sampled);
     HIST_SERIES.sort((a,b)=>new Date(b.t)-new Date(a.t));
-
     applyHistFilter();
   }).catch(e=>{
     console.error(e);
@@ -675,13 +705,13 @@ async function boot(){
     histBody.innerHTML="";
     histTableWrap.style.display="none";
     histEmpty.style.display="block";
-    histEmpty.textContent="Historic tides unavailable (USGS long-range query may be limited). Try again or reduce time range.";
+    histEmpty.textContent="Historic tides unavailable (USGS long-range query may be limited).";
     histMeta.textContent="—";
   });
 
   try{
-    await updateLive();
-    await updateTimeseries();
+    const latestObs = await updateLive();
+    await updateTimeseries(latestObs);
   }catch(e){
     console.error(e);
     stageTextEl.textContent="LIVE DATA UNAVAILABLE";
