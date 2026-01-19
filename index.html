@@ -1,7 +1,6 @@
 <!-- =========================
-PART 1 / 2 — FULL FIXED FILE (index.html)
-Paste this entire Part 1 first.
-Then say “part 2” for Part 2/2 to paste immediately after it.
+PART 1 / 2 — index.html (PASTE THIS FIRST)
+Then say "go" and I’ll give PART 2 / 2.
 ========================= -->
 <!doctype html>
 <html lang="en">
@@ -111,7 +110,7 @@ Then say “part 2” for Part 2/2 to paste immediately after it.
       padding:12px;
       text-align:center;
     }
-    .rangeTitle{color:var(--mutedm);color:var(--muted);font-weight:950;font-size:11.5px;text-transform:uppercase;letter-spacing:.2px}
+    .rangeTitle{color:var(--muted);font-weight:950;font-size:11.5px;text-transform:uppercase;letter-spacing:.2px}
     .rangeRow{display:flex;justify-content:center;gap:26px;flex-wrap:wrap;margin-top:8px}
     .rangeCol{min-width:160px}
     .rangeLab{color:var(--muted);font-weight:950;font-size:11px;letter-spacing:.18px;text-transform:uppercase}
@@ -288,7 +287,6 @@ Then say “part 2” for Part 2/2 to paste immediately after it.
         <div class="kicker" style="text-transform:none">Observed: USGS 15-min · Predicted: NOAA CO-OPS</div>
       </div>
       <div class="chartWrapTall"><canvas id="tsChart"></canvas></div>
-
       <div class="foot" id="fcNote"></div>
       <div class="foot" id="txtNote"></div>
     </div>
@@ -363,10 +361,13 @@ function navdToMllw(ft){ return ft - OFFSET_NAVD_FROM_MLLW_FT; }
 
 /* USGS observed (15-min IV). */
 const USGS_SITE="01412150";
+/* NOTE: These param codes MUST match your gauge output.
+   PRIMARY_PARAM 72279 is "Tidal elevation, NOS-averaged, NAVD88 (ft)" on many NJ tide sites.
+   FALLBACK_PARAM 00065 is gauge height. */
 const PRIMARY_PARAM="72279";
 const FALLBACK_PARAM="00065";
 
-/* NOAA CO-OPS predictions */
+/* NOAA CO-OPS predictions (nearby station). */
 const COOPS_STATION="8535055";
 const COOPS_APP="cupajoe.live";
 const COOPS_DATUM="MLLW";
@@ -414,7 +415,7 @@ const TOP_TEN_MLLW=[
   {date:"03-09-2024", ft:5.39}
 ];
 
-/* DOM */
+/* DOM helpers */
 const $=id=>document.getElementById(id);
 
 const curFtEl=$("curFt"), curMetaEl=$("curMeta");
@@ -498,7 +499,6 @@ function updateUnitsAndBadges(){
 /* Simple helpers */
 function maxPoint(arr){ return arr.reduce((a,b)=>b.ft>a.ft?b:a, arr[0]); }
 function minPoint(arr){ return arr.reduce((a,b)=>b.ft<a.ft?b:a, arr[0]); }
-
 function setTXTStatus(msg){ if(txtNote) txtNote.textContent = msg; }
 
 /* Fetch helper */
@@ -565,7 +565,6 @@ function parseUSGSDailyTidesTXT(text){
     const ln = lines[i];
     if(!ln) continue;
     if(ln.startsWith("#")) continue;
-    if(/^\d+s\t/.test(ln) && ln.includes("20d")) continue;
 
     const parts = ln.split("\t");
     if(parts.length < header.length) continue;
@@ -594,7 +593,8 @@ function parseUSGSDailyTidesTXT(text){
 function buildDailyEventsFromDailyTides(rows){
   const ev=[];
   for(const r of rows){
-    const t = new Date(Date.UTC(r.y, r.m-1, r.d, 17, 0, 0)).toISOString(); // 12:00 EST
+    // noon EST represented as 17:00Z
+    const t = new Date(Date.UTC(r.y, r.m-1, r.d, 17, 0, 0)).toISOString();
     if(r.highNavd!==null)  ev.push({t, ft:r.highNavd,  kind:"High",     y:r.y, m:r.m, d:r.d});
     if(r.lowhiNavd!==null) ev.push({t, ft:r.lowhiNavd, kind:"Low-High", y:r.y, m:r.m, d:r.d});
   }
@@ -639,6 +639,7 @@ async function fetchWithFallback(opts){
   return extractSeries(j);
 }
 
+/* NOAA helpers */
 function toCOOPSLocalStringGMT(date){
   const parts = new Intl.DateTimeFormat("en-US",{
     timeZone:"UTC", year:"numeric",month:"2-digit",day:"2-digit", hour:"2-digit",minute:"2-digit", hour12:false
@@ -682,6 +683,7 @@ async function fetchCOOPSPredictions_MLLW({beginDateISO=null, hours=72}={}){
             .filter(p=>Number.isFinite(p.ft) && p.t);
 }
 
+/* Alerts */
 async function updateAlerts(){
   try{
     const url = `https://api.weather.gov/alerts/active?point=${ALERT_POINT.lat},${ALERT_POINT.lon}`;
@@ -701,6 +703,7 @@ async function updateAlerts(){
   }
 }
 
+/* Top ten */
 function renderTopTen(){
   topTenBody.innerHTML="";
   TOP_TEN_MLLW.forEach((r,i)=>{
@@ -718,6 +721,7 @@ function renderTopTen(){
   });
 }
 
+/* Build fixed 15-min grid for the observed series */
 function buildFixedGrid15Min(seriesNavd, startISO, endISO){
   const start = new Date(startISO).getTime();
   const end = new Date(endISO).getTime();
@@ -753,15 +757,14 @@ function sliceAfter(series, startISO){
   const s = new Date(startISO).getTime();
   return (series||[]).filter(p=>new Date(p.t).getTime()>=s);
 }
-<!-- =========================
-PART 2 / 2 — FULL FIXED FILE (index.html)
-Paste this immediately after Part 1. (You are still inside the same <script>.)
-This part is PURE JS until it closes </script> and the HTML.
+      <!-- =========================
+PART 2 / 2 — index.html (PASTE IMMEDIATELY AFTER PART 1)
+This continues inside the SAME <script> tag and finishes the file.
 ========================= -->
 
 /* ========= SCRIPT (Part 2/2) ========= */
 
-/* ---------------- Colors for line segments (display datum) ---------------- */
+/* Colors for line segments (display datum) */
 function colorForFtDisplay(ftDisplay){
   const T = THRESH[DISPLAY_DATUM];
   if(ftDisplay>=T.majorLow)    return "rgba(167,139,250,.95)";
@@ -770,7 +773,7 @@ function colorForFtDisplay(ftDisplay){
   return "rgba(45,212,191,.90)";
 }
 
-/* ---------------- Peak counting (LIVE current-year YTD from 15-min series) ---------------- */
+/* Peak counting (live current-year YTD from 15-min series; NAVD thresholds) */
 function countFloodPeaks_NAVD(series){
   if(!series || series.length<3) return {minor:0, moderate:0, major:0};
   const T = THRESH.NAVD88;
@@ -809,7 +812,7 @@ function countFloodPeaks_NAVD(series){
   return {minor, moderate, major};
 }
 
-/* ---------------- Annual counts (TXT completed years, LIVE current year overwrite) ---------------- */
+/* Annual counts (TXT completed years, then we overwrite current year with live peaks) */
 function countAnnualFloodsFromTXT(eventsNavd){
   const T = THRESH.NAVD88;
   const byYear = new Map();
@@ -854,7 +857,7 @@ function overwriteCurrentYearBarWithLiveCounts(liveCounts){
   annualMajor[idx] = liveCounts.major;
 }
 
-/* ---------------- Annual chart ---------------- */
+/* Annual chart */
 function ensureAnnual(){
   if(annualChart) return;
   annualChart=new Chart($("annualChart"),{
@@ -901,7 +904,7 @@ function renderAnnual(){
   annualChart.update();
 }
 
-/* ---------------- Timeseries chart (24h obs + 72h pred) ---------------- */
+/* Timeseries chart (24h obs + 72h pred) */
 function buildDailyTickCallbackSkipFirstDay(labels){
   const seenDays = new Set();
   let firstDay = null;
@@ -1028,7 +1031,7 @@ function updateTsChartFromState(){
   tsChart.update();
 }
 
-/* ---------------- TXT-driven historic filter ---------------- */
+/* TXT-driven historic filter */
 function hydrateHistoricFromTXT(){
   HIGH_TIDES_NAVD = (DAILY_EVENTS_NAVD||[]).map(e=>({t:e.t, ft:e.ft, kind:e.kind, y:e.y, m:e.m, d:e.d}));
   HIGH_TIDES_NAVD.sort((a,b)=>new Date(b.t)-new Date(a.t));
@@ -1070,7 +1073,7 @@ function applyFilter(){
   renderHist(rows);
 }
 
-/* ---------------- Monthly averages (TXT events) ---------------- */
+/* Monthly averages (TXT events) */
 function monthNameFromIndex(i){
   const d = new Date(Date.UTC(2020, i-1, 15, 0, 0, 0));
   return fmtMonthName.format(d);
@@ -1194,7 +1197,7 @@ function updateMonthAveragesFromTXT(){
   renderMonthAveragesChart(stats);
 }
 
-/* ---------------- LIVE: current conditions + daily range + overwrite current year bar ---------------- */
+/* LIVE: current conditions + daily range + overwrite current year bar */
 async function updateLiveAndAnnualCounts(){
   buildAnnualArraysFromTXT_completedYears();
   renderAnnual();
@@ -1234,7 +1237,7 @@ async function updateLiveAndAnnualCounts(){
   renderAnnual();
 }
 
-/* ---------------- Timeseries update (observed + predictions) ---------------- */
+/* Timeseries update (observed + predictions) */
 async function updateTimeseries(){
   const end = new Date();
   const start = new Date(end.getTime() - 24*3600*1000);
@@ -1256,7 +1259,7 @@ async function updateTimeseries(){
   updateTsChartFromState();
 }
 
-/* ---------------- Init TXT-backed history ---------------- */
+/* Init TXT-backed history */
 async function initTXTBackedHistory(){
   await loadDailyTidesFromTXT();
   hydrateHistoricFromTXT();
@@ -1265,7 +1268,7 @@ async function initTXTBackedHistory(){
   renderAnnual();
 }
 
-/* ---------------- Boot ---------------- */
+/* Boot */
 async function boot(){
   updateUnitsAndBadges();
   renderTopTen();
@@ -1293,7 +1296,7 @@ async function boot(){
   }
 }
 
-/* ---------------- Controls ---------------- */
+/* Controls */
 $("applyBtn").addEventListener("click", applyFilter);
 
 $("resetBtn").addEventListener("click", ()=>{
@@ -1334,7 +1337,7 @@ datumBtn.addEventListener("click", ()=>{
   updateTsChartFromState();
 });
 
-/* ---------------- Start + Auto-refresh ---------------- */
+/* Start + auto-refresh */
 boot().catch(err=>{
   console.error(err);
   stageTextEl.textContent="LIVE DATA UNAVAILABLE";
