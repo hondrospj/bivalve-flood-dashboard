@@ -56,6 +56,16 @@
     }
     .dot{width:9px;height:9px;border-radius:999px;background:var(--ok);box-shadow:0 0 0 4px rgba(45,212,191,.16)}
 
+    .miniPill{
+      display:flex;
+      align-items:center;gap:10px;
+      padding:10px 12px;border-radius:999px;
+      border:1px solid var(--line);background:rgba(0,0,0,.16);
+      box-shadow:var(--shadow);
+      font-weight:950;font-size:12.5px;white-space:nowrap;
+      color:rgba(234,240,255,.92);
+    }
+
     .grid{display:grid;grid-template-columns:1.15fr .85fr;gap:14px;margin-top:10px}
     @media(max-width:980px){.grid{grid-template-columns:1fr}}
     .card{
@@ -94,7 +104,7 @@
     }
     @media(max-width:760px){.stages{grid-template-columns:1fr;overflow-x:visible}}
 
-    /* FIX: prevent badge overflow / label collision */
+    /* FIX: prevent badge overlap/overflow */
     .stage{
       background:var(--card2);
       border:1px solid var(--line);
@@ -148,15 +158,6 @@
     .btn{cursor:pointer}
     .btn:hover{filter:brightness(1.06)}
     .hint{color:var(--muted);font-size:12.5px;line-height:1.25}
-
-    .miniPill{
-      display:none;
-      margin-left:10px;
-      align-items:center;gap:10px;
-      padding:8px 10px;border-radius:999px;
-      border:1px solid var(--line);background:rgba(0,0,0,.14);
-      font-weight:950;font-size:12.5px;
-    }
   </style>
 </head>
 
@@ -178,10 +179,7 @@
       </a>
 
       <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap">
-        <div class="miniPill" id="nearPill">
-          <span class="chip" id="nearChip" style="background:var(--moderate)"></span>
-          <span id="nearText">—</span>
-        </div>
+        <div class="miniPill" id="lastUpdatedPill">Last updated: —</div>
 
         <div class="statusPill" id="stagePill">
           <span class="dot" id="stageDot"></span>
@@ -195,7 +193,7 @@
       <div class="card">
         <div class="hrow">
           <h2>Live conditions</h2>
-          <div id="lastUpdated" class="kicker" style="text-transform:none">Last updated: —</div>
+          <div class="kicker" style="text-transform:none" id="statusText">—</div>
         </div>
 
         <div class="metrics">
@@ -327,6 +325,7 @@
    CONFIG
 ========================= */
 const TZ="America/New_York";
+const CACHE_BUST = Date.now().toString(36);
 
 // USGS live observed
 const USGS_SITE="01412150";
@@ -339,15 +338,13 @@ const THRESH={minorLow:4.19, moderateLow:5.19, majorLow:6.19};
 // NWS banner query point (near Bivalve)
 const ALERT_POINT={lat:39.2325, lon:-75.0380};
 
-// Repo-built JSON paths
-const HIGH_TIDES_INDEX_JSON="data/high_tides_index.json";
+// Repo-built JSON path (cache-busted)
+const HIGH_TIDES_INDEX_JSON="data/high_tides_index.json?v="+CACHE_BUST;
 
-// NOAA Cape May predictions (MLLW -> NAVD88)
-// If your previous code already fetched NOAA predictions, keep it there.
-// Here we define the conversion for NAVD88.
+// NOAA Cape May predictions
 const NOAA_STATION="8536110";
-const NOAA_DATUM="MLLW"; // API returns in MLLW
-const MLLW_TO_NAVD88=-2.77; // NAVD88 = MLLW - 2.77
+const NOAA_DATUM="MLLW";
+const MLLW_TO_NAVD88=-2.77;
 
 // Top ten list (your provided values)
 const TOP_TEN=[
@@ -363,64 +360,11 @@ const TOP_TEN=[
   {date:"03-09-2024", ft:5.39}
 ];
 
-/* =========================
-   Annual flooding (2000 → present; current year live)
-========================= */
+// Annual flooding counts (2000–2025) you provided
 const START_YEAR=2000;
-const HIST_END_YEAR=2025;
-
-// Your historical baseline counts (2000–2025)
 const providedMinor=[0,0,1,20,13,25,19,16,20,29,25,30,23,20,23,11,23,34,40,44,35,31,14,41,65,38];
 const providedModerate=[0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,2,0,2,0,1,0,1,0,3,1];
 const providedMajor=providedMinor.map(()=>0);
-
-function buildAnnualRows(){
-  const nowY = new Date().getFullYear();
-  const rows=[];
-  for(let y=START_YEAR; y<=Math.max(HIST_END_YEAR, nowY); y++){
-    if(y<=HIST_END_YEAR){
-      const i=y-START_YEAR;
-      rows.push({y, minor:providedMinor[i]??0, moderate:providedModerate[i]??0, major:providedMajor[i]??0});
-    }else{
-      rows.push({y, minor:0, moderate:0, major:0});
-    }
-  }
-  return rows;
-}
-
-// Live-compute CURRENT YEAR counts from USGS YTD by event peaks
-async function computeCurrentYearFloodCounts(){
-  const y = new Date().getFullYear();
-  const start = new Date(Date.UTC(y,0,1,0,0,0)).toISOString();
-  const end = new Date().toISOString();
-
-  const series = await fetchWithFallback({startISO:start, endISO:end});
-  if(!series.length) return {y, minor:0, moderate:0, major:0};
-
-  let inEvent=false, peak=-Infinity;
-  let minor=0, moderate=0, major=0;
-
-  for(const p of series){
-    const ft=p.ft;
-    if(!inEvent){
-      if(ft>=THRESH.minorLow){ inEvent=true; peak=ft; }
-    }else{
-      if(ft>peak) peak=ft;
-      if(ft<THRESH.minorLow){
-        if(peak>=THRESH.majorLow) major++;
-        else if(peak>=THRESH.moderateLow) moderate++;
-        else if(peak>=THRESH.minorLow) minor++;
-        inEvent=false; peak=-Infinity;
-      }
-    }
-  }
-  if(inEvent){
-    if(peak>=THRESH.majorLow) major++;
-    else if(peak>=THRESH.moderateLow) moderate++;
-    else if(peak>=THRESH.minorLow) minor++;
-  }
-  return {y, minor, moderate, major};
-}
 
 /* =========================
    DOM
@@ -431,13 +375,13 @@ const monMaxFtEl=$("monMaxFt"), monMaxMetaEl=$("monMaxMeta");
 const dayMaxFtEl=$("dayMaxFt"), dayMaxMetaEl=$("dayMaxMeta");
 const dayMinFtEl=$("dayMinFt"), dayMinMetaEl=$("dayMinMeta");
 const stageTextEl=$("stageText"), stageDotEl=$("stageDot");
-const nearPill=$("nearPill"), nearText=$("nearText"), nearChip=$("nearChip");
+const statusText=$("statusText");
+const lastUpdatedPill=$("lastUpdatedPill");
 const alertBanner=$("alertBanner"), alertTitle=$("alertTitle"), alertBody=$("alertBody");
 const topTenBody=$("topTenBody");
 const tsNote=$("tsNote"), fcNote=$("fcNote");
 const histBody=$("histBody"), histMeta=$("histMeta");
 const minElevEl=$("minElev"), sortModeEl=$("sortMode");
-const lastUpdatedEl=$("lastUpdated");
 
 /* =========================
    Helpers
@@ -515,10 +459,8 @@ async function fetchWithFallback(opts){
 
 /* =========================
    NOAA predictions (Cape May) -> NAVD88
-   Uses CO-OPS datagetter. Returns MLLW values and converts by -2.77 ft.
 ========================= */
 function ymd(d){ return d.toISOString().slice(0,10).replaceAll("-",""); }
-
 async function fetchNOAA72h_NAVD88(){
   const now=new Date();
   const end=new Date(now.getTime()+72*3600*1000);
@@ -590,10 +532,55 @@ function renderTopTen(){
 }
 
 /* =========================
-   Annual chart (2000–present; current year live)
+   Annual chart (FORCED 2000 → present)
 ========================= */
-let annualChart=null;
+function buildAnnualRows(){
+  const nowY = new Date().getFullYear();
+  const rows=[];
+  for(let y=START_YEAR; y<=nowY; y++){
+    const i=y-START_YEAR;
+    rows.push({
+      y,
+      minor: (i>=0 && i<providedMinor.length) ? (providedMinor[i]||0) : 0,
+      moderate: (i>=0 && i<providedModerate.length) ? (providedModerate[i]||0) : 0,
+      major: (i>=0 && i<providedMajor.length) ? (providedMajor[i]||0) : 0
+    });
+  }
+  return rows;
+}
+async function computeCurrentYearFloodCounts(){
+  const y = new Date().getFullYear();
+  const start = new Date(Date.UTC(y,0,1,0,0,0)).toISOString();
+  const end = new Date().toISOString();
+  const series = await fetchWithFallback({startISO:start, endISO:end});
+  if(!series.length) return {y, minor:0, moderate:0, major:0};
 
+  let inEvent=false, peak=-Infinity;
+  let minor=0, moderate=0, major=0;
+
+  for(const p of series){
+    const ft=p.ft;
+    if(!inEvent){
+      if(ft>=THRESH.minorLow){ inEvent=true; peak=ft; }
+    }else{
+      if(ft>peak) peak=ft;
+      if(ft<THRESH.minorLow){
+        if(peak>=THRESH.majorLow) major++;
+        else if(peak>=THRESH.moderateLow) moderate++;
+        else minor++;
+        inEvent=false; peak=-Infinity;
+      }
+    }
+  }
+  if(inEvent){
+    if(peak>=THRESH.majorLow) major++;
+    else if(peak>=THRESH.moderateLow) moderate++;
+    else minor++;
+  }
+  return {y, minor, moderate, major};
+}
+
+let annualChart=null;
 function renderAnnualChart(rows){
   const labels=rows.map(r=>r.y);
   const minor=rows.map(r=>r.minor);
@@ -623,7 +610,7 @@ function renderAnnualChart(rows){
 }
 
 /* =========================
-   72h chart (USGS obs + NOAA predictions)
+   72h chart (USGS obs + NOAA preds)
 ========================= */
 let tsChart=null;
 function buildTsChart(obs, fc){
@@ -638,7 +625,7 @@ function buildTsChart(obs, fc){
       labels,
       datasets:[
         {label:"Observed (USGS)",data:obsData,borderWidth:2,pointRadius:0,tension:.25},
-        {label:"Predicted (NOAA Cape May, NAVD88)",data:fcData,borderWidth:2,pointRadius:0,borderDash:[6,5],tension:.25}
+        {label:"Predicted (Cape May, NAVD88)",data:fcData,borderWidth:2,pointRadius:0,borderDash:[6,5],tension:.25}
       ]
     },
     options:{
@@ -663,21 +650,20 @@ function buildTsChart(obs, fc){
   });
 
   const obsMsg=obs.length?`Obs: ${fmtNY(obs[0].t)} → ${fmtNY(obs[obs.length-1].t)}`:"Obs: —";
-  const fcMsg=fc.length?`Pred (NAVD88): ${fmtNY(fc[0].t)} → ${fmtNY(fc[fc.length-1].t)}`:"Pred: unavailable";
+  const fcMsg=fc.length?`Pred: ${fmtNY(fc[0].t)} → ${fmtNY(fc[fc.length-1].t)}`:"Pred: unavailable";
   fcNote.textContent=obsMsg+" · "+fcMsg;
 }
 
 /* =========================
-   Historic index (filter + last within ±0.2)
+   Historic index
 ========================= */
-let HIGH_TIDES=[]; // {t, ft}
+let HIGH_TIDES=[];
 
 async function loadJSON(path){
   const res=await fetch(path,{cache:"no-store"});
   if(!res.ok) throw new Error("fetch "+path+" "+res.status);
   return res.json();
 }
-
 function renderHist(rows){
   histBody.innerHTML="";
   const show=rows.slice(0, 80);
@@ -693,7 +679,6 @@ function renderHist(rows){
   }
   histMeta.textContent=`Indexed peaks: ${HIGH_TIDES.length.toLocaleString()} · Showing ${Math.min(80, rows.length)} of ${rows.length.toLocaleString()}`;
 }
-
 function applyFilter(){
   const min=parseFloat(minElevEl.value);
   const mode=sortModeEl.value;
@@ -702,18 +687,7 @@ function applyFilter(){
   if(mode==="desc") rows.sort((a,b)=>b.ft-a.ft);
   if(mode==="asc") rows.sort((a,b)=>a.ft-b.ft);
   if(mode==="recent") rows.sort((a,b)=>new Date(b.t)-new Date(a.t));
-
   renderHist(rows);
-}
-
-function lastWithinDelta(currentFt){
-  if(currentFt < THRESH.moderateLow) return null;
-  const delta=0.2;
-  const lo=currentFt-delta, hi=currentFt+delta;
-  const hits=HIGH_TIDES
-    .filter(r=>r.ft>=lo && r.ft<=hi)
-    .sort((a,b)=>new Date(b.t)-new Date(a.t));
-  return hits.length?hits[0]:null;
 }
 
 /* =========================
@@ -734,7 +708,7 @@ async function updateLive(){
 
   curFtEl.textContent=last.ft.toFixed(2);
   curMetaEl.textContent="Updated: "+fmtNY(last.t);
-  if(lastUpdatedEl) lastUpdatedEl.textContent="Last updated: "+fmtNY(last.t);
+  lastUpdatedPill.textContent="Last updated: "+fmtNY(last.t);
   setStage(last.ft);
 
   const monthSeries=await fetchWithFallback({startISO:startOfMonthNY_ISO(), endISO:nowISO()});
@@ -744,7 +718,7 @@ async function updateLive(){
     monMaxMetaEl.textContent="Max @ "+fmtNY(mx.t);
   }else{
     monMaxFtEl.textContent="—";
-    monMaxMetaEl.textContent="No data this month.";
+    monMaxMetaEl.textContent="—";
   }
 
   const daySeries=await fetchWithFallback({startISO:startOfTodayNY_ISO(), endISO:nowISO()});
@@ -755,35 +729,23 @@ async function updateLive(){
     dayMinFtEl.textContent=dmn.ft.toFixed(2);
     dayMinMetaEl.textContent="Min @ "+fmtNY(dmn.t);
   }else{
-    dayMaxFtEl.textContent="—"; dayMaxMetaEl.textContent="No data today.";
-    dayMinFtEl.textContent="—"; dayMinMetaEl.textContent="No data today.";
+    dayMaxFtEl.textContent="—"; dayMaxMetaEl.textContent="—";
+    dayMinFtEl.textContent="—"; dayMinMetaEl.textContent="—";
   }
 
-  // last within ±0.2 ft when >= moderate
-  const hit=lastWithinDelta(last.ft);
-  if(hit){
-    nearPill.style.display="inline-flex";
-    nearChip.style.background=(last.ft>=THRESH.majorLow)?"var(--major)":"var(--moderate)";
-    nearText.textContent=`Last within ±0.2 ft: ${hit.ft.toFixed(2)} ft · ${fmtNY(hit.t)}`;
-  }else{
-    nearPill.style.display="none";
-  }
+  statusText.textContent="";
 
   tsNote.textContent = `Flood stages: Minor ${THRESH.minorLow.toFixed(2)}–${THRESH.moderateLow.toFixed(2)} · Moderate ${THRESH.moderateLow.toFixed(2)}–${THRESH.majorLow.toFixed(2)} · Major ≥ ${THRESH.majorLow.toFixed(2)} ft`;
-
-  return last;
 }
 
 /* =========================
-   Timeseries update (72h obs + 72h NOAA preds)
+   Timeseries update
 ========================= */
 async function updateTimeseries(){
-  // Observations: last 72h
   const end=new Date();
   const start=new Date(end.getTime()-72*3600*1000);
   const obs=await fetchWithFallback({startISO:start.toISOString(), endISO:end.toISOString()});
 
-  // NOAA predictions (NAVD88 converted)
   let fc=[];
   try{ fc=await fetchNOAA72h_NAVD88(); }catch{ fc=[]; }
 
@@ -797,21 +759,30 @@ async function boot(){
   renderTopTen();
   await updateAlerts();
 
-  // load historic index
-  const idx=await loadJSON(HIGH_TIDES_INDEX_JSON);
-  HIGH_TIDES=(idx?.peaks||[]).map(p=>({t:p.t, ft:+p.ft})).filter(p=>Number.isFinite(p.ft));
-  HIGH_TIDES.sort((a,b)=>new Date(b.t)-new Date(a.t));
-  applyFilter();
-
-  // Annual baseline always full 2000 → present
-  let rows=buildAnnualRows();
+  // Annual always renders immediately
+  let rows = buildAnnualRows();
   renderAnnualChart(rows);
 
-  // Live update
-  await updateLive();
-  await updateTimeseries();
+  // Historic index
+  try{
+    const idx=await loadJSON(HIGH_TIDES_INDEX_JSON);
+    HIGH_TIDES=(idx?.peaks||[]).map(p=>({t:p.t, ft:+p.ft})).filter(p=>Number.isFinite(p.ft));
+    HIGH_TIDES.sort((a,b)=>new Date(b.t)-new Date(a.t));
+    applyFilter();
+  }catch{
+    histMeta.textContent="Historic index unavailable.";
+  }
 
-  // live-update current year on annual chart
+  // Live + 72h
+  try{
+    await updateLive();
+    await updateTimeseries();
+  }catch{
+    stageTextEl.textContent="LIVE DATA UNAVAILABLE";
+    lastUpdatedPill.textContent="Last updated: —";
+  }
+
+  // Live-update current year bar (if possible)
   try{
     const liveY=await computeCurrentYearFloodCounts();
     rows = rows.map(r => (r.y===liveY.y ? liveY : r));
@@ -826,15 +797,8 @@ $("resetBtn").addEventListener("click", ()=>{
   applyFilter();
 });
 
-boot().catch(err=>{
-  console.error(err);
-  stageTextEl.textContent="LIVE DATA UNAVAILABLE";
-  if(lastUpdatedEl) lastUpdatedEl.textContent="Last updated: —";
-  histMeta.textContent="Could not load historic index.";
-});
-
-// refresh every 5 minutes
-setInterval(()=>boot().catch(()=>{}), 5*60*1000);
+boot();
+setInterval(()=>boot(), 5*60*1000);
 </script>
 </body>
 </html>
