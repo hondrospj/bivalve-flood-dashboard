@@ -192,7 +192,7 @@
           <div class="rangeMeta" id="dayRangeMeta">—</div>
         </div>
 
-        <!-- PUT NUMERIC THRESHOLDS ABOVE THE HISTORIC FLOODING PLOT -->
+        <!-- THRESHOLDS ABOVE HISTORIC FLOODING PLOT -->
         <div class="stages" aria-label="Flood stages">
           <div class="stage">
             <div class="stageName">Minor</div>
@@ -208,10 +208,7 @@
           </div>
         </div>
 
-        <!-- HISTORIC FLOODING PLOT -->
         <div class="chartWrap"><canvas id="annualChart"></canvas></div>
-
-        <!-- NOTE BELOW X-AXIS -->
         <div class="foot" id="annualNote">Note: sparse data in 2000–2002.</div>
       </div>
 
@@ -282,12 +279,12 @@
 <script>
 /* =========================
    ONLY CHANGES IN THIS VERSION:
-   1) Force ALL displayed times to EST (no EDT) via fixed timezone.
-   2) Tighten the Obs/Pred range string.
-   3) Move numeric thresholds ABOVE the historic flooding plot.
+   1) Fix the 72h chart tooltip/title so it shows formatted EST (not raw ISO).
+   2) Remove the FIRST day label on the x-axis (e.g., Jan 16) to prevent “Jan 16” and “Jan 17” crowding again.
+   (Everything else unchanged.)
 ========================= */
 
-// Force EST year-round (UTC-5). Intl uses "Etc/GMT+5" for UTC-5.
+// Force fixed EST year-round (UTC-5). (This is the correct IANA form for fixed offset.)
 const TZ="Etc/GMT+5";
 
 const USGS_SITE="01412150";
@@ -409,8 +406,6 @@ async function fetchWithFallback(opts){
 }
 
 function toCOOPSLocalString(date){
-  // COOPS expects local time; we still build a local-style string.
-  // (This does not alter anything else in your code path.)
   const parts = new Intl.DateTimeFormat("en-US",{
     timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit",
     hour:"2-digit",minute:"2-digit",hour12:false
@@ -509,19 +504,28 @@ function renderAnnual(){
 }
 
 let tsChart=null;
-function buildDailyTickCallback(labels){
-  let lastDayStr=null;
+
+/* === KEY FIX #1: ALWAYS skip the first day label (prevents Jan 16 + Jan 17 crowding again) === */
+function buildDailyTickCallbackSkipFirstDay(labels){
+  const seenDays = new Set();
+  let firstDay = null;
   return (value, index)=>{
     const iso = labels[index];
     if(!iso) return "";
     const dayStr = fmtESTDay(iso);
-    if(dayStr !== lastDayStr){
-      lastDayStr = dayStr;
-      return dayStr;
-    }
-    return "";
+
+    if(firstDay === null) firstDay = dayStr;
+
+    // only label on day change
+    if(seenDays.has(dayStr)) return "";
+    seenDays.add(dayStr);
+
+    // skip the first day entirely (e.g., Jan 16)
+    if(dayStr === firstDay) return "";
+    return dayStr;
   };
 }
+
 function buildTsChart(obs, fc){
   const labels=[...obs.map(p=>p.t), ...fc.map(p=>p.t)];
   const obsData=[...obs.map(p=>p.ft), ...Array(fc.length).fill(null)];
@@ -539,11 +543,36 @@ function buildTsChart(obs, fc){
     },
     options:{
       responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{labels:{color:"rgba(234,240,255,.88)",font:{weight:"950"}}}},
+      plugins:{
+        legend:{labels:{color:"rgba(234,240,255,.88)",font:{weight:"950"}}},
+
+        /* === KEY FIX #2: Tooltip title shows EST-formatted date/time, not raw ISO === */
+        tooltip:{
+          callbacks:{
+            title:(items)=>{
+              if(!items || !items.length) return "";
+              const idx = items[0].dataIndex;
+              const iso = labels[idx];
+              return fmtESTFull(iso); // shows "Jan 18, 2026, 09:12 AM" style in EST
+            },
+            label:(ctx)=>{
+              const v = ctx.parsed?.y;
+              const dsLabel = ctx.dataset?.label || "";
+              if(v === null || v === undefined || Number.isNaN(v)) return dsLabel;
+              return `${dsLabel}: ${(+v).toFixed(2)}`;
+            }
+          }
+        }
+      },
       interaction:{mode:"index",intersect:false},
       scales:{
         x:{
-          ticks:{color:"rgba(169,182,211,.9)",autoSkip:false,maxRotation:0,callback:buildDailyTickCallback(labels)},
+          ticks:{
+            color:"rgba(169,182,211,.9)",
+            autoSkip:false,
+            maxRotation:0,
+            callback:buildDailyTickCallbackSkipFirstDay(labels)
+          },
           grid:{color:"rgba(255,255,255,.06)"}
         },
         y:{
@@ -555,7 +584,7 @@ function buildTsChart(obs, fc){
     }
   });
 
-  // TIGHTENED RANGE STRING (no year, no commas)
+  // Tight range string (unchanged from your last version)
   const obsMsg=obs.length?`Obs: ${fmtESTTight(obs[0].t)} → ${fmtESTTight(obs[obs.length-1].t)}`:"Obs: —";
   const fcMsg=fc.length?`Pred: ${fmtESTTight(fc[0].t)} → ${fmtESTTight(fc[fc.length-1].t)} (NAVD88)`:"Pred: unavailable";
   fcNote.textContent=obsMsg+" · "+fcMsg;
