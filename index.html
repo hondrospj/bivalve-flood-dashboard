@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Bivalve, NJ — Tidal Flooding Dashboard</title>
+  <title>Bivalve, NJ — Tidal Flooding Dashboard (NAVD88)</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
   <style>
@@ -189,13 +189,13 @@
         <div class="metrics">
           <div class="metric">
             <div class="ml">Current water elevation</div>
-            <div class="mv"><span id="curFt">—</span><span class="unit">ft</span></div>
+            <div class="mv"><span id="curFt">—</span><span class="unit">ft NAVD88</span></div>
             <div class="ms" id="curMeta">Updated: —</div>
           </div>
 
           <div class="metric">
             <div class="ml">Monthly maximum</div>
-            <div class="mv"><span id="monMaxFt">—</span><span class="unit">ft</span></div>
+            <div class="mv"><span id="monMaxFt">—</span><span class="unit">ft NAVD88</span></div>
             <div class="ms" id="monMaxMeta">—</div>
           </div>
         </div>
@@ -205,11 +205,11 @@
           <div class="rangeRow">
             <div class="rangeCol">
               <div class="rangeLab">Max</div>
-              <div class="rangeVal"><span id="dayMaxFt">—</span><span class="unit"> ft</span></div>
+              <div class="rangeVal"><span id="dayMaxFt">—</span><span class="unit"> ft NAVD88</span></div>
             </div>
             <div class="rangeCol">
               <div class="rangeLab">Min</div>
-              <div class="rangeVal"><span id="dayMinFt">—</span><span class="unit"> ft</span></div>
+              <div class="rangeVal"><span id="dayMinFt">—</span><span class="unit"> ft NAVD88</span></div>
             </div>
           </div>
           <div class="rangeMeta" id="dayRangeMeta">—</div>
@@ -246,7 +246,7 @@
               <tr>
                 <th>Rank</th>
                 <th>Date</th>
-                <th>Height (ft)</th>
+                <th>Height (ft NAVD88)</th>
                 <th>Type</th>
               </tr>
             </thead>
@@ -261,7 +261,7 @@
     <div class="card">
       <div class="hrow">
         <h2>72 hours: observations vs Bivalve predictions (NOAA)</h2>
-        <div class="kicker" style="text-transform:none">Observed: USGS 15-min · Predicted: NOAA CO-OPS</div>
+        <div class="kicker" style="text-transform:none">Observed: USGS 15-min · Predicted: NOAA CO-OPS (converted to NAVD88)</div>
       </div>
       <div class="chartWrapTall"><canvas id="tsChart"></canvas></div>
       <div class="foot" id="fcNote">—</div>
@@ -294,7 +294,7 @@
           <thead>
             <tr>
               <th>Date/Time (ET)</th>
-              <th>Peak (ft)</th>
+              <th>Peak (ft NAVD88)</th>
               <th>Type</th>
             </tr>
           </thead>
@@ -316,24 +316,28 @@ const USGS_SITE="01412150";
 const PRIMARY_PARAM="72279";  // tidal elevation (NOS-averaged)
 const FALLBACK_PARAM="00065"; // gage height fallback
 
-// NOAA CO-OPS Bivalve predictions
-const COOPS_STATION="8535055"; // Bivalve, Maurice River, NJ :contentReference[oaicite:1]{index=1}
+// NOAA CO-OPS Bivalve predictions (typically MLLW)
+const COOPS_STATION="8535055";
 const COOPS_APP="cupajoe.live";
-const COOPS_DATUM="MLLW";      // keep MLLW (safe). If you want to try NAVD: set "NAVD".
-const COOPS_INTERVAL="6";      // 6-min predictions
-const COOPS_TZ="lst_ldt";      // local standard/daylight time (ET)
+const COOPS_DATUM="MLLW";
+const COOPS_INTERVAL="6";
+const COOPS_TZ="lst_ldt";
 
-// Flood thresholds (ft)
+// Datum conversion (user-specified):
+// NAVD88 = MLLW + (-3.41 ft)  (i.e., subtract 3.41 ft from MLLW values)
+const MLLW_TO_NAVD88_OFFSET_FT = -3.41;
+
+// Flood thresholds (ft NAVD88)
 const THRESH={minorLow:4.19, moderateLow:5.19, majorLow:6.19};
 
 // NWS banner query point (near Bivalve)
 const ALERT_POINT={lat:39.2325, lon:-75.0380};
 
-// Files in your repo (per your screenshot)
-const HIST_EVENTS_JSON="data/events.json";          // your historical peaks/event list
-const ANNUAL_COUNTS_JSON="data/annual_counts.json"; // optional if you want to load it later
+// Files in your repo
+const HIST_EVENTS_JSON="data/events.json";
+const ANNUAL_COUNTS_JSON="data/annual_counts.json";
 
-// Top ten list (your provided values)
+// Top ten list (your provided values) — fixed #8 to include 2025
 const TOP_TEN=[
   {date:"10-29-2012", ft:7.03},
   {date:"11-25-1950", ft:6.60},
@@ -342,7 +346,7 @@ const TOP_TEN=[
   {date:"08-27-2011", ft:5.60},
   {date:"01-23-2016", ft:5.58},
   {date:"04-19-2022", ft:5.50},
-  {date:"08-21-????", ft:5.49},
+  {date:"08-21-2025", ft:5.49},
   {date:"10-26-2019", ft:5.41},
   {date:"03-09-2024", ft:5.39}
 ];
@@ -352,6 +356,10 @@ const START_YEAR=2000, END_YEAR=2025;
 const providedMinor=[0,0,1,20,13,25,19,16,20,29,25,30,23,20,23,11,23,34,40,44,35,31,14,41,65,38];
 const providedModerate=[0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,2,0,2,0,1,0,1,0,3,1];
 const providedMajor=providedMinor.map(()=>0);
+
+// Add exactly one major flood in 2012
+// 2012 index = 2012 - 2000 = 12
+providedMajor[12]=1;
 
 /* =========================
    DOM
@@ -378,6 +386,10 @@ function fmtET(iso){
     timeZone:TZ,year:"numeric",month:"short",day:"2-digit",
     hour:"2-digit",minute:"2-digit",hour12:true
   }).format(d);
+}
+function fmtDayET(iso){
+  const d=new Date(iso);
+  return new Intl.DateTimeFormat("en-US",{timeZone:TZ,month:"short",day:"2-digit"}).format(d);
 }
 function fmtETShort(iso){
   const d=new Date(iso);
@@ -441,9 +453,8 @@ async function fetchWithFallback(opts){
 }
 
 /* =========================
-   NOAA CO-OPS predictions (Bivalve)
+   NOAA CO-OPS predictions (Bivalve) -> convert to NAVD88
 ========================= */
-function pad2(n){return String(n).padStart(2,"0");}
 function toCOOPSLocalString(date){
   // Builds "YYYYMMDD HH:MM" in ET (works for COOPS time_zone=lst_ldt)
   const parts = new Intl.DateTimeFormat("en-US",{
@@ -458,7 +469,7 @@ function toCOOPSLocalString(date){
   return `${y}${m}${d} ${hh}:${mm}`;
 }
 
-async function fetchCOOPSPredictions72h(){
+async function fetchCOOPSPredictions72h_NAVD88(){
   const start=new Date();
   const end=new Date(start.getTime()+72*3600*1000);
 
@@ -466,7 +477,7 @@ async function fetchCOOPSPredictions72h(){
   url.searchParams.set("product","predictions");
   url.searchParams.set("application",COOPS_APP);
   url.searchParams.set("station",COOPS_STATION);
-  url.searchParams.set("datum",COOPS_DATUM);
+  url.searchParams.set("datum",COOPS_DATUM); // MLLW in request
   url.searchParams.set("time_zone",COOPS_TZ);
   url.searchParams.set("units","english");
   url.searchParams.set("interval",COOPS_INTERVAL);
@@ -478,12 +489,13 @@ async function fetchCOOPSPredictions72h(){
   if(!res.ok) throw new Error("COOPS predictions failed "+res.status);
   const j=await res.json();
   const arr=j?.predictions||[];
-  // COOPS returns local timestamps like "2026-01-19 09:12"
+
+  // Convert CO-OPS (MLLW) -> NAVD88 using your offset
   return arr.map(p=>{
-    // treat as ET local; create ISO by appending offset via Date parsing trick:
-    // safest: convert "YYYY-MM-DD HH:MM" to "YYYY-MM-DDTHH:MM:00" and let fmtET show ET anyway.
     const t=p.t.replace(" ","T")+":00";
-    return {t, ft:+p.v};
+    const mllw=+p.v;
+    const navd=mllw + MLLW_TO_NAVD88_OFFSET_FT;
+    return {t, ft:navd};
   }).filter(p=>Number.isFinite(p.ft));
 }
 
@@ -556,10 +568,27 @@ function renderAnnual(){
 }
 
 /* =========================
-   72h chart (USGS obs + COOPS preds)
+   72h chart (USGS obs + COOPS preds, NAVD88) with DAILY x labels
 ========================= */
 let tsChart=null;
+
+function buildDailyTickCallback(labels){
+  // Show "Jan 18" once per day, using ET date changes.
+  let lastDayStr=null;
+  return (value, index)=>{
+    const iso = labels[index];
+    if(!iso) return "";
+    const dayStr = fmtDayET(iso);
+    if(dayStr !== lastDayStr){
+      lastDayStr = dayStr;
+      return dayStr;
+    }
+    return "";
+  };
+}
+
 function buildTsChart(obs, fc){
+  // Keep full 72h observed range (no trimming beyond what's fetched)
   const labels=[...obs.map(p=>p.t), ...fc.map(p=>p.t)];
   const obsData=[...obs.map(p=>p.ft), ...Array(fc.length).fill(null)];
   const fcData=[...Array(obs.length).fill(null), ...fc.map(p=>p.ft)];
@@ -570,8 +599,8 @@ function buildTsChart(obs, fc){
     data:{
       labels,
       datasets:[
-        {label:"Observed (USGS)",data:obsData,borderWidth:2,pointRadius:0,tension:.25,borderColor:"rgba(56,189,248,.95)"},
-        {label:`Predicted (NOAA, ${COOPS_DATUM})`,data:fcData,borderWidth:2,pointRadius:0,borderDash:[6,5],tension:.25,borderColor:"rgba(251,113,133,.95)"}
+        {label:"Observed (USGS, NAVD88)",data:obsData,borderWidth:2,pointRadius:0,tension:.25,borderColor:"rgba(56,189,248,.95)"},
+        {label:`Predicted (NOAA, converted to NAVD88)`,data:fcData,borderWidth:2,pointRadius:0,borderDash:[6,5],tension:.25,borderColor:"rgba(251,113,133,.95)"}
       ]
     },
     options:{
@@ -581,21 +610,24 @@ function buildTsChart(obs, fc){
       scales:{
         x:{
           ticks:{
-            color:"rgba(169,182,211,.9)",maxTicksLimit:6,
-            callback:(v,i)=> {
-              const n=labels.length, step=Math.max(1, Math.floor(n/6));
-              return (i%step===0)?fmtETShort(labels[i]):"";
-            }
+            color:"rgba(169,182,211,.9)",
+            autoSkip:false,
+            maxRotation:0,
+            callback: buildDailyTickCallback(labels)
           },
           grid:{color:"rgba(255,255,255,.06)"}
         },
-        y:{ticks:{color:"rgba(169,182,211,.9)"},grid:{color:"rgba(255,255,255,.06)"}}
+        y:{
+          ticks:{color:"rgba(169,182,211,.9)"},
+          grid:{color:"rgba(255,255,255,.06)"},
+          title:{display:true,text:"ft NAVD88",color:"rgba(169,182,211,.9)",font:{weight:"950"}}
+        }
       }
     }
   });
 
   const obsMsg=obs.length?`Obs: ${fmtET(obs[0].t)} → ${fmtET(obs[obs.length-1].t)}`:"Obs: —";
-  const fcMsg=fc.length?`Pred: ${fmtET(fc[0].t)} → ${fmtET(fc[fc.length-1].t)}`:"Pred: unavailable";
+  const fcMsg=fc.length?`Pred: ${fmtET(fc[0].t)} → ${fmtET(fc[fc.length-1].t)} (NAVD88)`:"Pred: unavailable";
   fcNote.textContent=obsMsg+" · "+fcMsg;
 }
 
@@ -633,12 +665,11 @@ async function loadHistoric(){
     if(!res.ok) throw new Error("missing");
     const j=await res.json();
 
-    // Accept a few shapes:
-    // - {peaks:[{t,ft}]}
-    // - [{t,ft}]
-    // - {events:[{t,ft}]}
     const arr = Array.isArray(j) ? j : (j.peaks || j.events || []);
-    HIGH_TIDES = arr.map(p=>({t:p.t, ft:+(p.ft ?? p.v ?? p.value)})).filter(p=>Number.isFinite(p.ft) && p.t);
+    HIGH_TIDES = arr
+      .map(p=>({t:p.t, ft:+(p.ft ?? p.v ?? p.value)}))
+      .filter(p=>Number.isFinite(p.ft) && p.t);
+
     HIGH_TIDES.sort((a,b)=>new Date(b.t)-new Date(a.t));
     applyFilter();
     if(!HIGH_TIDES.length) histMeta.textContent="Historic tides file loaded, but no rows found.";
@@ -700,9 +731,9 @@ async function updateTimeseries(){
   const start=new Date(end.getTime()-72*3600*1000);
   const obs=await fetchWithFallback({startISO:start.toISOString(), endISO:end.toISOString()});
 
-  // Predictions: next 72h from NOAA CO-OPS (Bivalve)
+  // Predictions: next 72h from NOAA CO-OPS (converted to NAVD88)
   let fc=[];
-  try{ fc=await fetchCOOPSPredictions72h(); }catch{ fc=[]; }
+  try{ fc=await fetchCOOPSPredictions72h_NAVD88(); }catch{ fc=[]; }
 
   buildTsChart(obs, fc);
 }
