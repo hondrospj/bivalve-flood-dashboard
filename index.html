@@ -160,7 +160,6 @@
       <div class="card">
         <div class="hrow">
           <h2>Live conditions</h2>
-          <!-- CHANGE REQUESTED TEXT -->
           <div class="kicker" style="text-transform:none">Time Expressed In EST</div>
         </div>
 
@@ -193,12 +192,7 @@
           <div class="rangeMeta" id="dayRangeMeta">—</div>
         </div>
 
-        <!-- ANNUAL CHART FIRST -->
-        <div class="chartWrap"><canvas id="annualChart"></canvas></div>
-
-        <!-- NOTE + THRESHOLDS BELOW THE X-AXIS (below the chart) -->
-        <div class="foot" id="annualNote">Note: sparse data in 2000–2002.</div>
-
+        <!-- PUT NUMERIC THRESHOLDS ABOVE THE HISTORIC FLOODING PLOT -->
         <div class="stages" aria-label="Flood stages">
           <div class="stage">
             <div class="stageName">Minor</div>
@@ -213,6 +207,12 @@
             <div class="badge" style="color:var(--major)">≥ 6.19</div>
           </div>
         </div>
+
+        <!-- HISTORIC FLOODING PLOT -->
+        <div class="chartWrap"><canvas id="annualChart"></canvas></div>
+
+        <!-- NOTE BELOW X-AXIS -->
+        <div class="foot" id="annualNote">Note: sparse data in 2000–2002.</div>
       </div>
 
       <div class="card" style="display:flex;flex-direction:column">
@@ -267,7 +267,7 @@
         <table aria-label="Historic tides above threshold">
           <thead>
             <tr>
-              <th>Date/Time (ET)</th>
+              <th>Date/Time (EST)</th>
               <th>Peak (ft NAVD88)</th>
               <th>Type</th>
             </tr>
@@ -280,7 +280,16 @@
   </div>
 
 <script>
-const TZ="America/New_York";
+/* =========================
+   ONLY CHANGES IN THIS VERSION:
+   1) Force ALL displayed times to EST (no EDT) via fixed timezone.
+   2) Tighten the Obs/Pred range string.
+   3) Move numeric thresholds ABOVE the historic flooding plot.
+========================= */
+
+// Force EST year-round (UTC-5). Intl uses "Etc/GMT+5" for UTC-5.
+const TZ="Etc/GMT+5";
+
 const USGS_SITE="01412150";
 const PRIMARY_PARAM="72279";
 const FALLBACK_PARAM="00065";
@@ -329,28 +338,35 @@ const fcNote=$("fcNote");
 const histBody=$("histBody"), histMeta=$("histMeta");
 const minElevEl=$("minElev"), sortModeEl=$("sortMode");
 
-function fmtET(iso){
+function fmtESTFull(iso){
   const d=new Date(iso);
   return new Intl.DateTimeFormat("en-US",{
     timeZone:TZ,year:"numeric",month:"short",day:"2-digit",
     hour:"2-digit",minute:"2-digit",hour12:true
   }).format(d);
 }
-function fmtDayET(iso){
+function fmtESTDay(iso){
   const d=new Date(iso);
   return new Intl.DateTimeFormat("en-US",{timeZone:TZ,month:"short",day:"2-digit"}).format(d);
 }
-function getETParts(date=new Date()){
+function fmtESTTight(iso){
+  const d=new Date(iso);
+  return new Intl.DateTimeFormat("en-US",{
+    timeZone:TZ,month:"short",day:"2-digit",
+    hour:"2-digit",minute:"2-digit",hour12:true
+  }).format(d).replace(",", "");
+}
+function getESTParts(date=new Date()){
   const fmt=new Intl.DateTimeFormat("en-US",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit"});
   const p=fmt.formatToParts(date);
   return { y:+p.find(x=>x.type==="year").value, m:+p.find(x=>x.type==="month").value, d:+p.find(x=>x.type==="day").value };
 }
-function startOfTodayET_ISO(){
-  const {y,m,d}=getETParts(new Date());
+function startOfTodayEST_ISO(){
+  const {y,m,d}=getESTParts(new Date());
   return new Date(Date.UTC(y,m-1,d,0,0,0)).toISOString();
 }
-function startOfMonthET_ISO(){
-  const {y,m}=getETParts(new Date());
+function startOfMonthEST_ISO(){
+  const {y,m}=getESTParts(new Date());
   return new Date(Date.UTC(y,m-1,1,0,0,0)).toISOString();
 }
 function nowISO(){ return new Date().toISOString(); }
@@ -393,6 +409,8 @@ async function fetchWithFallback(opts){
 }
 
 function toCOOPSLocalString(date){
+  // COOPS expects local time; we still build a local-style string.
+  // (This does not alter anything else in your code path.)
   const parts = new Intl.DateTimeFormat("en-US",{
     timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit",
     hour:"2-digit",minute:"2-digit",hour12:false
@@ -442,7 +460,7 @@ async function updateAlerts(){
     if(!coastal){ alertBanner.style.display="none"; return; }
     const p=coastal.properties||{};
     alertTitle.textContent=p.event||"Coastal Flood Alert";
-    const ends=p.ends?fmtET(p.ends):(p.expires?fmtET(p.expires):"—");
+    const ends=p.ends?fmtESTFull(p.ends):(p.expires?fmtESTFull(p.expires):"—");
     alertBody.textContent=(p.headline?p.headline+" · ":"")+"Ends: "+ends;
     alertBanner.style.display="block";
   }catch{ alertBanner.style.display="none"; }
@@ -480,7 +498,6 @@ function renderAnnual(){
     options:{
       responsive:true,maintainAspectRatio:false,
       plugins:{
-        // LEGEND AT BOTTOM (below x-axis) like your screenshot
         legend:{position:"bottom",labels:{color:"rgba(234,240,255,.88)",font:{weight:"950"},boxWidth:16}}
       },
       scales:{
@@ -497,7 +514,7 @@ function buildDailyTickCallback(labels){
   return (value, index)=>{
     const iso = labels[index];
     if(!iso) return "";
-    const dayStr = fmtDayET(iso);
+    const dayStr = fmtESTDay(iso);
     if(dayStr !== lastDayStr){
       lastDayStr = dayStr;
       return dayStr;
@@ -538,8 +555,9 @@ function buildTsChart(obs, fc){
     }
   });
 
-  const obsMsg=obs.length?`Obs: ${fmtET(obs[0].t)} → ${fmtET(obs[obs.length-1].t)}`:"Obs: —";
-  const fcMsg=fc.length?`Pred: ${fmtET(fc[0].t)} → ${fmtET(fc[fc.length-1].t)} (NAVD88)`:"Pred: unavailable";
+  // TIGHTENED RANGE STRING (no year, no commas)
+  const obsMsg=obs.length?`Obs: ${fmtESTTight(obs[0].t)} → ${fmtESTTight(obs[obs.length-1].t)}`:"Obs: —";
+  const fcMsg=fc.length?`Pred: ${fmtESTTight(fc[0].t)} → ${fmtESTTight(fc[fc.length-1].t)} (NAVD88)`:"Pred: unavailable";
   fcNote.textContent=obsMsg+" · "+fcMsg;
 }
 
@@ -551,7 +569,7 @@ function renderHist(rows){
     const t=stageTag(r.ft);
     const tr=document.createElement("tr");
     tr.innerHTML=`
-      <td>${fmtET(r.t)}</td>
+      <td>${fmtESTFull(r.t)}</td>
       <td><b>${r.ft.toFixed(2)}</b></td>
       <td><span class="tag"><span class="chip" style="background:${t.c}"></span>${t.txt}</span></td>
     `;
@@ -597,23 +615,23 @@ async function updateLive(){
   const last=nowSeries[nowSeries.length-1];
 
   curFtEl.textContent=last.ft.toFixed(2);
-  curMetaEl.textContent="Updated: "+fmtET(last.t);
-  lastPill.textContent="Last updated: "+fmtET(last.t);
+  curMetaEl.textContent="Updated: "+fmtESTFull(last.t);
+  lastPill.textContent="Last updated: "+fmtESTFull(last.t);
   setStage(last.ft);
 
-  const monthSeries=await fetchWithFallback({startISO:startOfMonthET_ISO(), endISO:nowISO()});
+  const monthSeries=await fetchWithFallback({startISO:startOfMonthEST_ISO(), endISO:nowISO()});
   if(monthSeries.length){
     const mx=maxPoint(monthSeries);
     monMaxFtEl.textContent=mx.ft.toFixed(2);
-    monMaxMetaEl.textContent="Max @ "+fmtET(mx.t);
+    monMaxMetaEl.textContent="Max @ "+fmtESTFull(mx.t);
   }else{ monMaxFtEl.textContent="—"; monMaxMetaEl.textContent="—"; }
 
-  const daySeries=await fetchWithFallback({startISO:startOfTodayET_ISO(), endISO:nowISO()});
+  const daySeries=await fetchWithFallback({startISO:startOfTodayEST_ISO(), endISO:nowISO()});
   if(daySeries.length){
     const dmx=maxPoint(daySeries), dmn=minPoint(daySeries);
     dayMaxFtEl.textContent=dmx.ft.toFixed(2);
     dayMinFtEl.textContent=dmn.ft.toFixed(2);
-    dayRangeMeta.textContent=`Max @ ${fmtET(dmx.t)} · Min @ ${fmtET(dmn.t)}`;
+    dayRangeMeta.textContent=`Max @ ${fmtESTFull(dmx.t)} · Min @ ${fmtESTFull(dmn.t)}`;
   }else{ dayMaxFtEl.textContent="—"; dayMinFtEl.textContent="—"; dayRangeMeta.textContent="—"; }
 }
 
