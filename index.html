@@ -56,7 +56,6 @@
     }
     .dot{width:9px;height:9px;border-radius:999px;background:var(--ok);box-shadow:0 0 0 4px rgba(45,212,191,.16)}
 
-    /* two-col layout; do NOT stretch equal heights */
     .grid{
       display:grid;
       grid-template-columns:1.15fr .85fr;
@@ -87,7 +86,6 @@
       margin:0;font-size:12.5px;letter-spacing:.22px;text-transform:uppercase;color:var(--muted);font-weight:950
     }
 
-    /* center text inside panels */
     .metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
     @media(max-width:720px){.metrics{grid-template-columns:1fr}}
     .metric{
@@ -106,7 +104,6 @@
     .subCap{color:var(--muted);font-weight:950;font-size:11px;letter-spacing:.2px;text-transform:uppercase}
     .bigNum{font-size:28px;font-weight:950;letter-spacing:.2px}
 
-    /* FIX overlap: stages wrap & center */
     .stages{
       display:grid;
       grid-template-columns:repeat(3, minmax(0,1fr));
@@ -145,7 +142,6 @@
     .chip{width:9px;height:9px;border-radius:99px;display:inline-block}
 
     .chartWrapTall{height:310px;width:100%}
-    .chartWrap{height:240px;width:100%}
     .chartWrapSmall{height:220px;width:100%}
 
     .filterRow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
@@ -189,11 +185,11 @@
     </div>
 
     <div class="grid">
-      <!-- LEFT: LIVE + STAGES + ANNUAL (fills blank space) -->
+      <!-- LEFT -->
       <div class="card">
         <div class="hrow">
           <h2>Live conditions</h2>
-          <div id="statusText" class="kicker" style="text-transform:none">Times shown in Eastern Time</div>
+          <div class="kicker" style="text-transform:none">Times shown in Eastern Time</div>
         </div>
 
         <div class="metrics">
@@ -229,11 +225,9 @@
         <div class="hrow"><h2>Annual flooding (2000–present)</h2></div>
         <div class="chartWrapSmall"><canvas id="annualChart"></canvas></div>
         <div class="thinNote">Note: sparse data in 2000–2002.</div>
-
-        <div class="thinNote" id="tsNote">—</div>
       </div>
 
-      <!-- RIGHT: TOP TEN ONLY -->
+      <!-- RIGHT -->
       <div class="card">
         <div class="hrow"><h2>Top ten highest tides</h2></div>
         <div class="table">
@@ -266,7 +260,7 @@
     <div style="height:12px"></div>
 
     <div class="card">
-      <div class="hrow"><h2>Historic tides filter (above minor)</h2></div>
+      <div class="hrow"><h2>Historic tides filter (all 15-min readings)</h2></div>
 
       <div class="filterRow">
         <input class="input" id="minElev" type="number" step="0.01" value="4.19" />
@@ -279,16 +273,16 @@
         <button class="btn" id="resetBtn">Reset</button>
       </div>
 
-      <div class="hint" id="histMeta">Loading historic index…</div>
+      <div class="hint" id="histMeta">Loading…</div>
 
       <div style="height:10px"></div>
 
       <div class="table" id="histTableWrap">
-        <table aria-label="Historic tides above threshold">
+        <table aria-label="Historic 15-min readings above threshold">
           <thead>
             <tr>
               <th>Date/Time (ET)</th>
-              <th class="center">Peak</th>
+              <th class="center">Level</th>
               <th class="center">Type</th>
             </tr>
           </thead>
@@ -313,8 +307,17 @@ const ALERT_POINT={lat:39.2325, lon:-75.0380};
 const NOAA_STATION="8536110";
 const MLLW_TO_NAVD88=-2.77;
 
-const EVENTS_JSON="data/events.json"; // <-- FIX: your repo file is events.json
+/* Historic all-tides query settings:
+   - USGS may limit huge requests. We'll try long-range first, then fall back.
+   - MAX_STORE: hard cap stored points to keep browser snappy.
+*/
+const HIST_START_ISO="1900-01-01T00:00:00Z";
+const HIST_FALLBACK_DAYS=[3650, 1825, 1095, 730, 365]; // 10y,5y,3y,2y,1y
+const MAX_STORE=120000;   // cap points in memory
+const MAX_RENDER=120;     // rows shown
+const HIST_SAMPLE_STRIDE=1; // if you want faster: set 2,3,4... to sample every N points
 
+/* Top ten */
 const TOP_TEN=[
   {date:"10-29-2012", ft:7.03},
   {date:"11-25-1950", ft:6.60},
@@ -328,6 +331,7 @@ const TOP_TEN=[
   {date:"03-09-2024", ft:5.39}
 ];
 
+/* Annual (your provided) */
 const START_YEAR=2000;
 const providedMinor=[0,0,1,20,13,25,19,16,20,29,25,30,23,20,23,11,23,34,40,44,35,31,14,41,65,38];
 const providedModerate=[0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,2,0,2,0,1,0,1,0,3,1];
@@ -342,10 +346,10 @@ const stageTextEl=$("stageText"), stageDotEl=$("stageDot");
 const lastUpdatedPill=$("lastUpdatedPill");
 const alertBanner=$("alertBanner"), alertTitle=$("alertTitle"), alertBody=$("alertBody");
 const topTenBody=$("topTenBody");
-const tsNote=$("tsNote"), fcNote=$("fcNote");
 const histBody=$("histBody"), histMeta=$("histMeta");
 const histTableWrap=$("histTableWrap"), histEmpty=$("histEmpty");
 const minElevEl=$("minElev"), sortModeEl=$("sortMode");
+const fcNote=$("fcNote");
 
 /* ===== TIME (ET) ===== */
 const dtfET = new Intl.DateTimeFormat("en-US",{
@@ -353,7 +357,6 @@ const dtfET = new Intl.DateTimeFormat("en-US",{
   hour:"2-digit", minute:"2-digit"
 });
 const dtfYMD = new Intl.DateTimeFormat("en-CA",{ timeZone:TZ, year:"numeric", month:"2-digit", day:"2-digit" });
-
 function normalizeISO(s){
   if(!s) return s;
   let t=String(s).trim();
@@ -471,30 +474,6 @@ function buildAnnualRows(){
   }
   return rows;
 }
-async function computeCurrentYearFloodCounts(){
-  const y=new Date().getFullYear();
-  const start=new Date(Date.UTC(y,0,1,0,0,0)).toISOString();
-  const series=await fetchWithFallback({startISO:start,endISO:nowISO()});
-  if(!series.length) return {y,minor:0,moderate:0,major:0};
-
-  let inEvent=false, peak=-Infinity, minor=0, moderate=0, major=0;
-  for(const p of series){
-    const ft=p.ft;
-    if(!inEvent){
-      if(ft>=THRESH.minorLow){ inEvent=true; peak=ft; }
-    }else{
-      if(ft>peak) peak=ft;
-      if(ft<THRESH.minorLow){
-        if(peak>=THRESH.majorLow) major++; else if(peak>=THRESH.moderateLow) moderate++; else minor++;
-        inEvent=false; peak=-Infinity;
-      }
-    }
-  }
-  if(inEvent){
-    if(peak>=THRESH.majorLow) major++; else if(peak>=THRESH.moderateLow) moderate++; else minor++;
-  }
-  return {y,minor,moderate,major};
-}
 function renderAnnualChart(rows){
   if(annualChart) annualChart.destroy();
   annualChart=new Chart($("annualChart"),{
@@ -554,41 +533,44 @@ function buildTsChart(obs,fc){
   fcNote.textContent=o+" · "+f;
 }
 
-/* ===== Historic tides (load your events.json) ===== */
-let HIGH_TIDES=[];
-function classifyType(ft){ return classify(ft).s; }
+/* ===== Historic ALL tides filter (15-min readings) ===== */
+let HIST_SERIES=[]; // {t,ft}
+function compactSeries(series){
+  if(series.length<=MAX_STORE) return series;
+  const stride=Math.ceil(series.length / MAX_STORE);
+  const out=[];
+  for(let i=0;i<series.length;i+=stride) out.push(series[i]);
+  return out;
+}
+async function fetchHistoricAllTides(){
+  // Try very long range; if USGS limits, fall back to shorter windows.
+  const end=nowISO();
 
-async function loadEvents(){
-  histMeta.textContent="Loading historic index…";
-  histEmpty.style.display="none";
-  histTableWrap.style.display="block";
+  const tryFetch = async (startISO)=>{
+    const s=await fetchWithFallback({startISO, endISO:end});
+    return s;
+  };
 
-  const url=new URL(EVENTS_JSON, document.baseURI).toString();
-  const r=await fetch(url,{cache:"no-store"});
-  if(!r.ok) throw new Error("events.json HTTP "+r.status);
+  // 1) long-range attempt
+  try{
+    const big=await tryFetch(HIST_START_ISO);
+    if(big.length) return big;
+  }catch{}
 
-  const j=await r.json();
-
-  // Support common schemas:
-  // A) {peaks:[{t,ft},...]}  B) [{t,ft},...]  C) {events:[{peak_time,peak_ft},...]}
-  const raw = Array.isArray(j) ? j
-            : (j.peaks || j.events || j.points || []);
-
-  HIGH_TIDES = raw.map(p=>{
-    const t = p.t || p.time || p.peak_time || p.datetime || p.dateTime;
-    const ft = p.ft ?? p.peak_ft ?? p.peak ?? p.value;
-    return { t: normalizeISO(t), ft:+ft };
-  }).filter(p=>p.t && Number.isFinite(p.ft));
-
-  if(!HIGH_TIDES.length) throw new Error("No usable events found in events.json");
-
-  HIGH_TIDES.sort((a,b)=>new Date(b.t)-new Date(a.t));
-  applyFilter();
+  // 2) fallbacks
+  for(const days of HIST_FALLBACK_DAYS){
+    try{
+      const start=new Date(Date.now()-days*86400*1000).toISOString();
+      const s=await tryFetch(start);
+      if(s.length) return s;
+    }catch{}
+  }
+  return [];
 }
 
 function renderHist(rows){
   histBody.innerHTML="";
-  const show=rows.slice(0,80);
+  const show=rows.slice(0,MAX_RENDER);
   for(const r of show){
     const t=classify(r.ft);
     const tr=document.createElement("tr");
@@ -599,14 +581,18 @@ function renderHist(rows){
     `;
     histBody.appendChild(tr);
   }
-  histMeta.textContent=`Indexed peaks: ${HIGH_TIDES.length.toLocaleString()} · Showing ${Math.min(80, rows.length)} of ${rows.length.toLocaleString()}`;
+  histMeta.textContent=`Loaded readings: ${HIST_SERIES.length.toLocaleString()} · Showing ${Math.min(MAX_RENDER, rows.length)} of ${rows.length.toLocaleString()}`;
 }
-function applyFilter(){
-  if(!HIGH_TIDES.length) return;
-  const min=+minElevEl.value||THRESH.minorLow;
+
+function applyHistFilter(){
+  if(!HIST_SERIES.length){
+    histMeta.textContent="Historic tides unavailable.";
+    return;
+  }
+  const min=+minElevEl.value || THRESH.minorLow;
   const mode=sortModeEl.value;
 
-  let rows=HIGH_TIDES.filter(r=>r.ft>=min);
+  let rows=HIST_SERIES.filter(r=>r.ft>=min);
   if(mode==="desc") rows.sort((a,b)=>b.ft-a.ft);
   if(mode==="asc") rows.sort((a,b)=>a.ft-b.ft);
   if(mode==="recent") rows.sort((a,b)=>new Date(b.t)-new Date(a.t));
@@ -651,8 +637,6 @@ async function updateLive(){
   }else{
     dayMaxFtEl.textContent="—"; dayMinFtEl.textContent="—"; dayRangeMetaEl.textContent="—";
   }
-
-  tsNote.textContent=`Flood stages: Minor ${THRESH.minorLow.toFixed(2)}–${THRESH.moderateLow.toFixed(2)} · Moderate ${THRESH.moderateLow.toFixed(2)}–${THRESH.majorLow.toFixed(2)} · Major ≥ ${THRESH.majorLow.toFixed(2)} ft`;
 }
 
 async function updateTimeseries(){
@@ -664,29 +648,35 @@ async function updateTimeseries(){
 }
 
 /* ===== Boot ===== */
-let annualRows=null;
 async function boot(){
   renderTopTen();
   updateAlerts();
 
-  annualRows=buildAnnualRows();
-  renderAnnualChart(annualRows);
+  renderAnnualChart(buildAnnualRows());
 
-  // optional: live update current year counts
-  computeCurrentYearFloodCounts().then(liveY=>{
-    annualRows=annualRows.map(r=>r.y===liveY.y?liveY:r);
-    renderAnnualChart(annualRows);
-  }).catch(()=>{});
+  // Historic all-tides
+  histMeta.textContent="Loading historic 15-min readings…";
+  histEmpty.style.display="none";
+  histTableWrap.style.display="block";
 
-  // historic tides from your repo file
-  loadEvents().catch(e=>{
+  fetchHistoricAllTides().then(series=>{
+    if(!series.length) throw new Error("no historic data returned");
+
+    // optional sampling stride
+    const sampled = (HIST_SAMPLE_STRIDE>1) ? series.filter((_,i)=>i%HIST_SAMPLE_STRIDE===0) : series;
+
+    HIST_SERIES = compactSeries(sampled);
+    HIST_SERIES.sort((a,b)=>new Date(b.t)-new Date(a.t));
+
+    applyHistFilter();
+  }).catch(e=>{
     console.error(e);
-    HIGH_TIDES=[];
+    HIST_SERIES=[];
     histBody.innerHTML="";
     histTableWrap.style.display="none";
     histEmpty.style.display="block";
-    histEmpty.textContent="Historic tides unavailable (events.json missing or schema mismatch).";
-    histMeta.textContent="Check: /data/events.json";
+    histEmpty.textContent="Historic tides unavailable (USGS long-range query may be limited). Try again or reduce time range.";
+    histMeta.textContent="—";
   });
 
   try{
@@ -699,11 +689,11 @@ async function boot(){
   }
 }
 
-$("applyBtn").addEventListener("click", applyFilter);
+$("applyBtn").addEventListener("click", applyHistFilter);
 $("resetBtn").addEventListener("click", ()=>{
   minElevEl.value=THRESH.minorLow.toFixed(2);
   sortModeEl.value="desc";
-  applyFilter();
+  applyHistFilter();
 });
 
 boot();
