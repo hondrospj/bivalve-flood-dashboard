@@ -168,6 +168,8 @@
             <div class="ml">Current water elevation</div>
             <div class="mv"><span id="curFt">—</span><span class="unit">ft NAVD88</span></div>
             <div class="ms" id="curMeta">Updated: —</div>
+            <!-- NEW: only fills when stage >= Moderate -->
+            <div class="ms" id="nearMeta" style="display:none"></div>
           </div>
 
           <div class="metric">
@@ -276,25 +278,39 @@
   </div>
 
 <script>
-// Force fixed EST year-round (UTC-5).
+/* Fixed EST year-round (UTC-5). */
 const TZ="Etc/GMT+5";
 
+/* USGS observed */
 const USGS_SITE="01412150";
 const PRIMARY_PARAM="72279";
 const FALLBACK_PARAM="00065";
 
+/* NOAA CO-OPS predictions (Bivalve) */
 const COOPS_STATION="8535055";
 const COOPS_APP="cupajoe.live";
 const COOPS_DATUM="MLLW";
 const COOPS_INTERVAL="6";
 const COOPS_TZ="lst_ldt";
 
+/* Convert NOAA MLLW -> NAVD88 (your chosen constant) */
 const MLLW_TO_NAVD88_OFFSET_FT = -3.41;
+
+/* Flood thresholds (NAVD88 ft) */
 const THRESH={minorLow:4.19, moderateLow:5.19, majorLow:6.19};
+
+/* #8 settings */
+const NEAR_TOL_FT = 0.20;                // within ±0.2 ft
+const NEAR_EXCLUDE_MINUTES = 45;         // don't match the current tide cycle point
+const NEAR_SEARCH_WINDOWS_DAYS = [180, 365*3, 365*10]; // progressively widen search
+
+/* NWS banner point */
 const ALERT_POINT={lat:39.2325, lon:-75.0380};
 
+/* Historic tides list file */
 const HIST_EVENTS_JSON="data/events.json";
 
+/* Top ten list */
 const TOP_TEN=[
   {date:"10-29-2012", ft:7.03},
   {date:"11-25-1950", ft:6.60},
@@ -308,14 +324,16 @@ const TOP_TEN=[
   {date:"03-09-2024", ft:5.39}
 ];
 
+/* Annual flooding counts (2000–2025) */
 const START_YEAR=2000, END_YEAR=2025;
 const providedMinor=[0,0,1,20,13,25,19,16,20,29,25,30,23,20,23,11,23,34,40,44,35,31,14,41,65,38];
 const providedModerate=[0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,2,0,2,0,1,0,1,0,3,1];
 const providedMajor=providedMinor.map(()=>0);
 providedMajor[2012-2000]=1;
 
+/* DOM */
 const $=id=>document.getElementById(id);
-const curFtEl=$("curFt"), curMetaEl=$("curMeta");
+const curFtEl=$("curFt"), curMetaEl=$("curMeta"), nearMetaEl=$("nearMeta");
 const monMaxFtEl=$("monMaxFt"), monMaxMetaEl=$("monMaxMeta");
 const dayMaxFtEl=$("dayMaxFt"), dayMinFtEl=$("dayMinFt");
 const dayRangeMeta=$("dayRangeMeta");
@@ -327,10 +345,18 @@ const fcNote=$("fcNote");
 const histBody=$("histBody"), histMeta=$("histMeta");
 const minElevEl=$("minElev"), sortModeEl=$("sortMode");
 
+/* Time helpers */
 function fmtESTFull(iso){
   const d=new Date(iso);
   return new Intl.DateTimeFormat("en-US",{
     timeZone:TZ,year:"numeric",month:"short",day:"2-digit",
+    hour:"2-digit",minute:"2-digit",hour12:true
+  }).format(d);
+}
+function fmtESTShort(iso){
+  const d=new Date(iso);
+  return new Intl.DateTimeFormat("en-US",{
+    timeZone:TZ,month:"short",day:"2-digit",
     hour:"2-digit",minute:"2-digit",hour12:true
   }).format(d);
 }
@@ -353,6 +379,7 @@ function startOfMonthEST_ISO(){
 }
 function nowISO(){ return new Date().toISOString(); }
 
+/* Stage classify */
 function classify(ft){
   if(ft>=THRESH.majorLow) return {label:"MAJOR FLOODING", color:"var(--major)", glow:"rgba(167,139,250,.22)", short:"Major"};
   if(ft>=THRESH.moderateLow) return {label:"MODERATE FLOODING", color:"var(--moderate)", glow:"rgba(251,113,133,.22)", short:"Moderate"};
@@ -363,6 +390,7 @@ function stageTag(ft){ const c=classify(ft); return {txt:c.short, c:c.color}; }
 function maxPoint(arr){ return arr.reduce((a,b)=>b.ft>a.ft?b:a, arr[0]); }
 function minPoint(arr){ return arr.reduce((a,b)=>b.ft<a.ft?b:a, arr[0]); }
 
+/* USGS fetch */
 async function fetchIV({startISO=null,endISO=null,parameterCd=PRIMARY_PARAM,period=null}={}){
   const url=new URL("https://waterservices.usgs.gov/nwis/iv/");
   url.searchParams.set("format","json");
@@ -390,6 +418,7 @@ async function fetchWithFallback(opts){
   return extractSeries(j);
 }
 
+/* NOAA predictions */
 function toCOOPSLocalString(date){
   const parts = new Intl.DateTimeFormat("en-US",{
     timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit",
@@ -402,7 +431,6 @@ function toCOOPSLocalString(date){
   const mm=parts.find(p=>p.type==="minute").value;
   return `${y}${m}${d} ${hh}:${mm}`;
 }
-
 async function fetchCOOPSPredictions72h_NAVD88(){
   const start=new Date();
   const end=new Date(start.getTime()+72*3600*1000);
@@ -430,6 +458,7 @@ async function fetchCOOPSPredictions72h_NAVD88(){
   }).filter(p=>Number.isFinite(p.ft));
 }
 
+/* NWS banner */
 async function updateAlerts(){
   try{
     const url=`https://api.weather.gov/alerts/active?point=${ALERT_POINT.lat},${ALERT_POINT.lon}`;
@@ -447,6 +476,7 @@ async function updateAlerts(){
   }catch{ alertBanner.style.display="none"; }
 }
 
+/* Top ten */
 function renderTopTen(){
   topTenBody.innerHTML="";
   TOP_TEN.forEach((r,i)=>{
@@ -462,6 +492,7 @@ function renderTopTen(){
   });
 }
 
+/* Annual chart */
 const YEARS=Array.from({length:END_YEAR-START_YEAR+1},(_,i)=>START_YEAR+i);
 let annualChart=null;
 function renderAnnual(){
@@ -489,6 +520,7 @@ function renderAnnual(){
   });
 }
 
+/* 72h chart */
 let tsChart=null;
 function buildDailyTickCallbackSkipFirstDay(labels){
   const seenDays = new Set();
@@ -497,16 +529,13 @@ function buildDailyTickCallbackSkipFirstDay(labels){
     const iso = labels[index];
     if(!iso) return "";
     const dayStr = fmtESTDay(iso);
-
     if(firstDay === null) firstDay = dayStr;
     if(seenDays.has(dayStr)) return "";
     seenDays.add(dayStr);
-
     if(dayStr === firstDay) return "";
     return dayStr;
   };
 }
-
 function buildTsChart(obs, fc){
   const labels=[...obs.map(p=>p.t), ...fc.map(p=>p.t)];
   const obsData=[...obs.map(p=>p.ft), ...Array(fc.length).fill(null)];
@@ -530,8 +559,7 @@ function buildTsChart(obs, fc){
           callbacks:{
             title:(items)=>{
               if(!items || !items.length) return "";
-              const idx = items[0].dataIndex;
-              const iso = labels[idx];
+              const iso = labels[items[0].dataIndex];
               return fmtESTFull(iso);
             },
             label:(ctx)=>{
@@ -563,10 +591,11 @@ function buildTsChart(obs, fc){
     }
   });
 
-  // removed range line
+  /* User requested removal of the "Obs: ... Pred: ..." line */
   fcNote.textContent = "";
 }
 
+/* Historic filter table */
 let HIGH_TIDES=[];
 function renderHist(rows){
   histBody.innerHTML="";
@@ -608,6 +637,7 @@ async function loadHistoric(){
   }
 }
 
+/* Stage pill */
 function setStage(ft){
   const c=classify(ft);
   stageTextEl.textContent=c.label;
@@ -615,6 +645,75 @@ function setStage(ft){
   stageDotEl.style.boxShadow=`0 0 0 4px ${c.glow}`;
 }
 
+/* #8: last time within ±0.2 ft of current moderate+ reading */
+let nearCacheKey = null;
+let nearCacheText = null;
+
+function daysToMs(d){ return d*24*3600*1000; }
+
+async function findLastNearMatch(targetFt, endISO){
+  const end = new Date(endISO);
+  const excludeBefore = new Date(end.getTime() - NEAR_EXCLUDE_MINUTES*60*1000);
+
+  for(const days of NEAR_SEARCH_WINDOWS_DAYS){
+    const start = new Date(end.getTime() - daysToMs(days));
+    const series = await fetchWithFallback({startISO:start.toISOString(), endISO:end.toISOString()});
+    if(!series.length) continue;
+
+    // scan from most recent backwards
+    for(let i=series.length-1;i>=0;i--){
+      const p = series[i];
+      const t = new Date(p.t);
+      if(t >= excludeBefore) continue; // avoid "matching itself"
+      if(Math.abs(p.ft - targetFt) <= NEAR_TOL_FT){
+        return p; // {t, ft}
+      }
+    }
+  }
+  return null;
+}
+
+async function updateNearMetaIfNeeded(currentFt, currentISO){
+  // Only for moderate or higher
+  if(currentFt < THRESH.moderateLow){
+    nearMetaEl.style.display="none";
+    nearMetaEl.textContent="";
+    nearCacheKey = null;
+    nearCacheText = null;
+    return;
+  }
+
+  // Cache per "rounded target + date-hour" to avoid re-querying every 5 min
+  const rounded = (Math.round(currentFt*100)/100).toFixed(2);
+  const bucket = new Date(currentISO);
+  const bucketKey = `${rounded}|${bucket.getUTCFullYear()}-${bucket.getUTCMonth()+1}-${bucket.getUTCDate()}-${bucket.getUTCHours()}`;
+  if(bucketKey === nearCacheKey && nearCacheText){
+    nearMetaEl.style.display="block";
+    nearMetaEl.textContent=nearCacheText;
+    return;
+  }
+
+  nearMetaEl.style.display="block";
+  nearMetaEl.textContent=`Finding last time within ±${NEAR_TOL_FT.toFixed(2)} ft…`;
+
+  try{
+    const p = await findLastNearMatch(currentFt, currentISO);
+    if(p){
+      nearCacheText = `Last within ±${NEAR_TOL_FT.toFixed(2)} ft: ${fmtESTShort(p.t)} (${p.ft.toFixed(2)} ft)`;
+    }else{
+      nearCacheText = `No match found within ±${NEAR_TOL_FT.toFixed(2)} ft in last 10 years.`;
+    }
+    nearCacheKey = bucketKey;
+    nearMetaEl.textContent = nearCacheText;
+  }catch{
+    nearCacheKey = null;
+    nearCacheText = null;
+    nearMetaEl.style.display="none";
+    nearMetaEl.textContent="";
+  }
+}
+
+/* Live metrics */
 async function updateLive(){
   const nowSeries=await fetchWithFallback({period:"P3D"});
   if(!nowSeries.length) throw new Error("no live data");
@@ -625,12 +724,17 @@ async function updateLive(){
   lastPill.textContent="Last updated: "+fmtESTFull(last.t);
   setStage(last.ft);
 
+  await updateNearMetaIfNeeded(last.ft, last.t);
+
   const monthSeries=await fetchWithFallback({startISO:startOfMonthEST_ISO(), endISO:nowISO()});
   if(monthSeries.length){
     const mx=maxPoint(monthSeries);
     monMaxFtEl.textContent=mx.ft.toFixed(2);
     monMaxMetaEl.textContent="Max @ "+fmtESTFull(mx.t);
-  }else{ monMaxFtEl.textContent="—"; monMaxMetaEl.textContent="—"; }
+  }else{
+    monMaxFtEl.textContent="—";
+    monMaxMetaEl.textContent="—";
+  }
 
   const daySeries=await fetchWithFallback({startISO:startOfTodayEST_ISO(), endISO:nowISO()});
   if(daySeries.length){
@@ -638,9 +742,14 @@ async function updateLive(){
     dayMaxFtEl.textContent=dmx.ft.toFixed(2);
     dayMinFtEl.textContent=dmn.ft.toFixed(2);
     dayRangeMeta.textContent=`Max @ ${fmtESTFull(dmx.t)} · Min @ ${fmtESTFull(dmn.t)}`;
-  }else{ dayMaxFtEl.textContent="—"; dayMinFtEl.textContent="—"; dayRangeMeta.textContent="—"; }
+  }else{
+    dayMaxFtEl.textContent="—";
+    dayMinFtEl.textContent="—";
+    dayRangeMeta.textContent="—";
+  }
 }
 
+/* 72h combined chart */
 async function updateTimeseries(){
   const end=new Date();
   const start=new Date(end.getTime()-72*3600*1000);
@@ -650,6 +759,7 @@ async function updateTimeseries(){
   buildTsChart(obs, fc);
 }
 
+/* Boot */
 $("applyBtn").addEventListener("click", applyFilter);
 $("resetBtn").addEventListener("click", ()=>{
   minElevEl.value=THRESH.minorLow.toFixed(2);
