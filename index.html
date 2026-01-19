@@ -1,8 +1,7 @@
 <!-- =========================
 PART 1 / 2 — FULL FIXED FILE (index.html)
 Paste this entire Part 1 first.
-Then say “part 2” and I’ll send Part 2/2 to paste immediately after it.
-IMPORTANT: Part 2 is PURE JavaScript (no HTML comments inside <script>).
+Then say “part 2” for Part 2/2 to paste immediately after it.
 ========================= -->
 <!doctype html>
 <html lang="en">
@@ -112,7 +111,7 @@ IMPORTANT: Part 2 is PURE JavaScript (no HTML comments inside <script>).
       padding:12px;
       text-align:center;
     }
-    .rangeTitle{color:var(--muted);font-weight:950;font-size:11.5px;text-transform:uppercase;letter-spacing:.2px}
+    .rangeTitle{color:var(--mutedm);color:var(--muted);font-weight:950;font-size:11.5px;text-transform:uppercase;letter-spacing:.2px}
     .rangeRow{display:flex;justify-content:center;gap:26px;flex-wrap:wrap;margin-top:8px}
     .rangeCol{min-width:160px}
     .rangeLab{color:var(--muted);font-weight:950;font-size:11px;letter-spacing:.18px;text-transform:uppercase}
@@ -349,20 +348,15 @@ IMPORTANT: Part 2 is PURE JavaScript (no HTML comments inside <script>).
     </div>
 
     <script>
-/* =========================
-SCRIPT — PART 1/2
-(constants + DOM + parsers + loader helpers)
-========================= */
+/* ========= SCRIPT (Part 1/2) ========= */
 
-/* Fixed EST year-round (UTC-5). If you want real local time w/ DST, use "America/New_York". */
+/* Fixed EST year-round (UTC-5). */
 const TZ="Etc/GMT+5";
 
 /* Datum toggle */
 let DISPLAY_DATUM = "MLLW"; // "MLLW" or "NAVD88"
 
-/* NAVD88 = MLLW + OFFSET_NAVD_FROM_MLLW_FT
-   You provided: 7.60 MLLW -> 4.19 NAVD88 => OFFSET = -3.41
-*/
+/* NAVD88 = MLLW + OFFSET_NAVD_FROM_MLLW_FT */
 const OFFSET_NAVD_FROM_MLLW_FT = -3.41;
 function mllwToNavd(ft){ return ft + OFFSET_NAVD_FROM_MLLW_FT; }
 function navdToMllw(ft){ return ft - OFFSET_NAVD_FROM_MLLW_FT; }
@@ -397,9 +391,7 @@ const TXT_PATH_CANDIDATES = [
   `data/${DAILY_TIDES_TXT_FILE}`,
   `./data/${DAILY_TIDES_TXT_FILE}`,
   `../data/${DAILY_TIDES_TXT_FILE}`,
-  `/data/${DAILY_TIDES_TXT_FILE}`,
-  `Data/${DAILY_TIDES_TXT_FILE}`,
-  `/Data/${DAILY_TIDES_TXT_FILE}`
+  `/data/${DAILY_TIDES_TXT_FILE}`
 ];
 
 let DAILY_TIDES_TXT_URL = TXT_PATH_CANDIDATES[0];
@@ -408,7 +400,7 @@ let DAILY_TIDES_TXT_URL = TXT_PATH_CANDIDATES[0];
 const COL_DAILY_HIGH  = "239251_72279_00021";
 const COL_DAILY_LOWHI = "239252_72279_00022";
 
-/* Top ten list is MLLW (your historic list) */
+/* Top ten list (MLLW) */
 const TOP_TEN_MLLW=[
   {date:"10-29-2012", ft:7.03},
   {date:"11-25-1950", ft:6.60},
@@ -422,10 +414,10 @@ const TOP_TEN_MLLW=[
   {date:"03-09-2024", ft:5.39}
 ];
 
-/* ---------------- DOM ---------------- */
+/* DOM */
 const $=id=>document.getElementById(id);
 
-const curFtEl=$("curFt"), curMetaEl=$("curMeta"), nearMetaEl=$("nearMeta");
+const curFtEl=$("curFt"), curMetaEl=$("curMeta");
 const dayMaxFtEl=$("dayMaxFt"), dayMinFtEl=$("dayMinFt"), dayRangeMeta=$("dayRangeMeta");
 const stageTextEl=$("stageText"), stageDotEl=$("stageDot");
 const lastPill=$("lastPill");
@@ -443,27 +435,20 @@ const datumBtn=$("datumBtn");
 
 const monthAvgMeta=$("monthAvgMeta"), monthAvgBody=$("monthAvgBody");
 
-/* ---------------- Formatters ---------------- */
+/* Formatters */
 const fmtFull = new Intl.DateTimeFormat("en-US",{ timeZone:TZ,year:"numeric",month:"short",day:"2-digit", hour:"2-digit",minute:"2-digit",hour12:true });
-const fmtShort = new Intl.DateTimeFormat("en-US",{ timeZone:TZ,month:"short",day:"2-digit", hour:"2-digit",minute:"2-digit",hour12:true });
 const fmtDay = new Intl.DateTimeFormat("en-US",{timeZone:TZ,month:"short",day:"2-digit"});
 const fmtPartsYMD = new Intl.DateTimeFormat("en-US",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit"});
 const fmtMonthName = new Intl.DateTimeFormat("en-US",{timeZone:TZ,month:"short"});
 
 function fmtESTFull(iso){ return fmtFull.format(new Date(iso)); }
-function fmtESTShort(iso){ return fmtShort.format(new Date(iso)); }
 function fmtESTDay(iso){ return fmtDay.format(new Date(iso)); }
 
 function getESTParts(date=new Date()){
   const p=fmtPartsYMD.formatToParts(date);
-  return {
-    y:+p.find(x=>x.type==="year").value,
-    m:+p.find(x=>x.type==="month").value,
-    d:+p.find(x=>x.type==="day").value
-  };
+  return { y:+p.find(x=>x.type==="year").value, m:+p.find(x=>x.type==="month").value, d:+p.find(x=>x.type==="day").value };
 }
 
-/* EST midnight == 05:00 UTC */
 function startOfTodayEST_ISO(){
   const {y,m,d}=getESTParts(new Date());
   return new Date(Date.UTC(y,m-1,d,5,0,0)).toISOString();
@@ -471,7 +456,7 @@ function startOfTodayEST_ISO(){
 function startOfYearEST_ISO(y){ return new Date(Date.UTC(y,0,1,5,0,0)).toISOString(); }
 function nowISO(){ return new Date().toISOString(); }
 
-/* ---------------- Datum display helpers ---------------- */
+/* Datum helpers */
 function datumLabel(){ return DISPLAY_DATUM; }
 function unitText(){ return "ft " + datumLabel(); }
 function toDisplayFtFromNavd(navd){ return (DISPLAY_DATUM==="MLLW") ? navdToMllw(navd) : navd; }
@@ -497,18 +482,8 @@ function setStage(navdFt){
   stageDotEl.style.boxShadow = `0 0 0 4px ${c.glow}`;
 }
 
-function colorForFtDisplay(ftDisplay){
-  const T = THRESH[DISPLAY_DATUM];
-  if(ftDisplay>=T.majorLow)    return "rgba(167,139,250,.95)";
-  if(ftDisplay>=T.moderateLow) return "rgba(251,113,133,.95)";
-  if(ftDisplay>=T.minorLow)    return "rgba(251,191,36,.95)";
-  return "rgba(45,212,191,.90)";
-}
-
 function updateUnitsAndBadges(){
-  document.querySelectorAll("[data-unit]").forEach(el=>{
-    el.textContent = "ft " + datumLabel();
-  });
+  document.querySelectorAll("[data-unit]").forEach(el=>{ el.textContent = "ft " + datumLabel(); });
   topTenUnitTh.textContent = "Height (" + unitText() + ")";
   histUnitTh.textContent = "Peak (" + unitText() + ")";
 
@@ -520,22 +495,18 @@ function updateUnitsAndBadges(){
   datumBtn.textContent = "Datum: " + datumLabel();
 }
 
-/* ---------------- Max/min helpers ---------------- */
+/* Simple helpers */
 function maxPoint(arr){ return arr.reduce((a,b)=>b.ft>a.ft?b:a, arr[0]); }
 function minPoint(arr){ return arr.reduce((a,b)=>b.ft<a.ft?b:a, arr[0]); }
 
-/* ---------------- TXT status ---------------- */
-function setTXTStatus(msg){
-  if(txtNote) txtNote.textContent = msg;
-}
+function setTXTStatus(msg){ if(txtNote) txtNote.textContent = msg; }
 
 /* Fetch helper */
 async function tryFetchText(url){
   try{
     const res = await fetch(url, { cache:"no-store" });
     if(!res.ok) return {ok:false, url, status:res.status, text:null};
-    const text = await res.text();
-    return {ok:true, url, status:res.status, text};
+    return {ok:true, url, status:res.status, text: await res.text()};
   }catch(e){
     return {ok:false, url, status:"NETWORK", text:null, err:(e?.message||String(e))};
   }
@@ -561,7 +532,7 @@ async function resolveDailyTidesTXTUrl(){
 let DAILY_TIDES = [];
 let DAILY_EVENTS_NAVD = [];
 
-/* Robust parser for USGS tab-delimited TXT */
+/* Parse USGS tab-delimited TXT */
 function parseUSGSDailyTidesTXT(text){
   const lines = text.split(/\r?\n/);
 
@@ -572,7 +543,7 @@ function parseUSGSDailyTidesTXT(text){
     if(ln.startsWith("#")) continue;
     if(ln.startsWith("agency_cd\t")) { headerLineIndex = i; break; }
   }
-  if(headerLineIndex < 0) throw new Error("TXT parse error: Could not find header row (agency_cd ...).");
+  if(headerLineIndex < 0) throw new Error("TXT parse error: could not find header row starting with 'agency_cd'.");
 
   const header = lines[headerLineIndex].split("\t");
   const idxDate = header.indexOf("datetime");
@@ -580,19 +551,16 @@ function parseUSGSDailyTidesTXT(text){
   const idxLowHi = header.indexOf(COL_DAILY_LOWHI);
 
   if(idxDate < 0 || idxHigh < 0 || idxLowHi < 0){
-    const preview = header.slice(0,25).join(", ");
     const missing = [
       idxDate < 0 ? "datetime" : null,
       idxHigh < 0 ? COL_DAILY_HIGH : null,
       idxLowHi < 0 ? COL_DAILY_LOWHI : null
     ].filter(Boolean).join(" / ");
-
-    setTXTStatus(`TXT ERROR: missing column(s): ${missing}. Found columns (preview): ${preview}`);
+    setTXTStatus(`TXT ERROR: missing column(s): ${missing}`);
     throw new Error("TXT missing required columns: " + missing);
   }
 
-  const out = [];
-
+  const out=[];
   for(let i=headerLineIndex+1;i<lines.length;i++){
     const ln = lines[i];
     if(!ln) continue;
@@ -603,13 +571,11 @@ function parseUSGSDailyTidesTXT(text){
     if(parts.length < header.length) continue;
 
     const dtStr = (parts[idxDate] || "").trim();
-    if(!dtStr || !/^\d{4}-\d{2}-\d{2}$/.test(dtStr)) continue;
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(dtStr)) continue;
 
     const y = +dtStr.slice(0,4);
     const m = +dtStr.slice(5,7);
     const d = +dtStr.slice(8,10);
-
-    const dateISO = dtStr + "T00:00:00Z";
 
     const highStr  = (parts[idxHigh] || "").trim();
     const lowhiStr = (parts[idxLowHi] || "").trim();
@@ -617,27 +583,20 @@ function parseUSGSDailyTidesTXT(text){
     const highNavd  = highStr  === "" ? null : +highStr;
     const lowhiNavd = lowhiStr === "" ? null : +lowhiStr;
 
-    if((highNavd !== null && Number.isFinite(highNavd)) || (lowhiNavd !== null && Number.isFinite(lowhiNavd))){
-      out.push({
-        y, m, d,
-        dateISO,
-        highNavd:  Number.isFinite(highNavd)  ? highNavd  : null,
-        lowhiNavd: Number.isFinite(lowhiNavd) ? lowhiNavd : null
-      });
+    if((highNavd!==null && Number.isFinite(highNavd)) || (lowhiNavd!==null && Number.isFinite(lowhiNavd))){
+      out.push({y,m,d, highNavd:Number.isFinite(highNavd)?highNavd:null, lowhiNavd:Number.isFinite(lowhiNavd)?lowhiNavd:null});
     }
   }
-
-  out.sort((a,b)=>new Date(a.dateISO)-new Date(b.dateISO));
+  out.sort((a,b)=> (a.y-b.y) || (a.m-b.m) || (a.d-b.d));
   return out;
 }
 
-/* Expand daily rows into “events” at 12:00 EST for stable display/sorting */
 function buildDailyEventsFromDailyTides(rows){
-  const ev = [];
+  const ev=[];
   for(const r of rows){
-    const t = new Date(Date.UTC(r.y, r.m-1, r.d, 17, 0, 0)).toISOString();
-    if(r.highNavd !== null)  ev.push({ t, ft: r.highNavd,  kind:"High",     y:r.y, m:r.m, d:r.d });
-    if(r.lowhiNavd !== null) ev.push({ t, ft: r.lowhiNavd, kind:"Low-High", y:r.y, m:r.m, d:r.d });
+    const t = new Date(Date.UTC(r.y, r.m-1, r.d, 17, 0, 0)).toISOString(); // 12:00 EST
+    if(r.highNavd!==null)  ev.push({t, ft:r.highNavd,  kind:"High",     y:r.y, m:r.m, d:r.d});
+    if(r.lowhiNavd!==null) ev.push({t, ft:r.lowhiNavd, kind:"Low-High", y:r.y, m:r.m, d:r.d});
   }
   ev.sort((a,b)=>new Date(a.t)-new Date(b.t));
   return ev;
@@ -648,10 +607,9 @@ async function loadDailyTidesFromTXT(){
   DAILY_TIDES = parseUSGSDailyTidesTXT(text);
   DAILY_EVENTS_NAVD = buildDailyEventsFromDailyTides(DAILY_TIDES);
   setTXTStatus(`TXT OK: ${DAILY_TIDES.length.toLocaleString()} daily rows (${DAILY_EVENTS_NAVD.length.toLocaleString()} events) from ${url}`);
-  console.log("TXT OK:", {url, dailyRows:DAILY_TIDES.length, events:DAILY_EVENTS_NAVD.length});
 }
 
-/* ---------------- USGS IV fetch ---------------- */
+/* USGS IV fetch */
 async function fetchIV({startISO=null,endISO=null,parameterCd=PRIMARY_PARAM,period=null}={}){
   const url=new URL("https://waterservices.usgs.gov/nwis/iv/");
   url.searchParams.set("format","json");
@@ -681,15 +639,10 @@ async function fetchWithFallback(opts){
   return extractSeries(j);
 }
 
-/* ---------------- NOAA predictions fetch ---------------- */
 function toCOOPSLocalStringGMT(date){
   const parts = new Intl.DateTimeFormat("en-US",{
-    timeZone:"UTC",
-    year:"numeric",month:"2-digit",day:"2-digit",
-    hour:"2-digit",minute:"2-digit",
-    hour12:false
+    timeZone:"UTC", year:"numeric",month:"2-digit",day:"2-digit", hour:"2-digit",minute:"2-digit", hour12:false
   }).formatToParts(date);
-
   const y=parts.find(p=>p.type==="year").value;
   const m=parts.find(p=>p.type==="month").value;
   const d=parts.find(p=>p.type==="day").value;
@@ -697,11 +650,9 @@ function toCOOPSLocalStringGMT(date){
   const mm=parts.find(p=>p.type==="minute").value;
   return `${y}${m}${d} ${hh}:${mm}`;
 }
-
 function roundUpTo6Min(d){
   const step = 6*60*1000;
-  const r = Math.ceil(d.getTime()/step)*step;
-  return new Date(r);
+  return new Date(Math.ceil(d.getTime()/step)*step);
 }
 
 async function fetchCOOPSPredictions_MLLW({beginDateISO=null, hours=72}={}){
@@ -727,13 +678,10 @@ async function fetchCOOPSPredictions_MLLW({beginDateISO=null, hours=72}={}){
   if(j?.error) throw new Error(j.error?.message || "NOAA error");
 
   const arr=j?.predictions||[];
-  return arr.map(p=>{
-    const t = p.t.replace(" ","T")+":00Z";
-    return {t, ft:+p.v}; // MLLW
-  }).filter(p=>Number.isFinite(p.ft) && p.t);
+  return arr.map(p=>({ t: p.t.replace(" ","T")+":00Z", ft:+p.v }))
+            .filter(p=>Number.isFinite(p.ft) && p.t);
 }
 
-/* ---------------- NWS alerts banner ---------------- */
 async function updateAlerts(){
   try{
     const url = `https://api.weather.gov/alerts/active?point=${ALERT_POINT.lat},${ALERT_POINT.lon}`;
@@ -742,10 +690,7 @@ async function updateAlerts(){
     const j=await res.json();
     const feats=j?.features||[];
     const coastal=feats.find(f=>((f?.properties?.event||"").toLowerCase().includes("coastal flood")));
-    if(!coastal){
-      alertBanner.style.display="none";
-      return;
-    }
+    if(!coastal){ alertBanner.style.display="none"; return; }
     const p=coastal.properties||{};
     alertTitle.textContent=p.event||"Coastal Flood Alert";
     const ends=p.ends?fmtESTFull(p.ends):(p.expires?fmtESTFull(p.expires):"—");
@@ -756,7 +701,6 @@ async function updateAlerts(){
   }
 }
 
-/* ---------------- Top Ten render (MLLW list) ---------------- */
 function renderTopTen(){
   topTenBody.innerHTML="";
   TOP_TEN_MLLW.forEach((r,i)=>{
@@ -774,7 +718,6 @@ function renderTopTen(){
   });
 }
 
-/* ---------------- No-interpolation grid (observed) ---------------- */
 function buildFixedGrid15Min(seriesNavd, startISO, endISO){
   const start = new Date(startISO).getTime();
   const end = new Date(endISO).getTime();
@@ -788,8 +731,7 @@ function buildFixedGrid15Min(seriesNavd, startISO, endISO){
     m.set(rounded, p.ft);
   }
 
-  const labels = [];
-  const values = [];
+  const labels=[], values=[];
   const s0 = Math.floor(start/step)*step;
   const e0 = Math.ceil(end/step)*step;
 
@@ -800,35 +742,35 @@ function buildFixedGrid15Min(seriesNavd, startISO, endISO){
   return {labels, values};
 }
 
-/* ---------------- Core state ---------------- */
-let HIGH_TIDES_NAVD=[]; // hydrated from TXT (events)
+/* Core state */
+let HIGH_TIDES_NAVD=[];
 let annualChart=null, tsChart=null, monthAvgChart=null;
-
 let YEARS=[], annualMinor=[], annualModerate=[], annualMajor=[];
 
-const STATE = {
-  lastNavd: null,
-  ytdNavd: null,
-  todayNavd: null,
-  obs24Navd: null,
-  pred72Mllw: null
-};
+const STATE = { lastNavd:null, ytdNavd:null, todayNavd:null, obs24Navd:null, pred72Mllw:null };
 
 function sliceAfter(series, startISO){
   const s = new Date(startISO).getTime();
   return (series||[]).filter(p=>new Date(p.t).getTime()>=s);
 }
+<!-- =========================
+PART 2 / 2 — FULL FIXED FILE (index.html)
+Paste this immediately after Part 1. (You are still inside the same <script>.)
+This part is PURE JS until it closes </script> and the HTML.
+========================= -->
 
-/* PART 2/2 continues immediately after this line. Do not close </script> yet. */
-/* =========================
-SCRIPT — PART 2/2
-(paste immediately after Part 1 — still inside the same <script>)
-========================= */
+/* ========= SCRIPT (Part 2/2) ========= */
 
-/* =========================
-Peak counting (LIVE current-year YTD from 15-min series)
-(two floods/day possible)
-========================= */
+/* ---------------- Colors for line segments (display datum) ---------------- */
+function colorForFtDisplay(ftDisplay){
+  const T = THRESH[DISPLAY_DATUM];
+  if(ftDisplay>=T.majorLow)    return "rgba(167,139,250,.95)";
+  if(ftDisplay>=T.moderateLow) return "rgba(251,113,133,.95)";
+  if(ftDisplay>=T.minorLow)    return "rgba(251,191,36,.95)";
+  return "rgba(45,212,191,.90)";
+}
+
+/* ---------------- Peak counting (LIVE current-year YTD from 15-min series) ---------------- */
 function countFloodPeaks_NAVD(series){
   if(!series || series.length<3) return {minor:0, moderate:0, major:0};
   const T = THRESH.NAVD88;
@@ -867,11 +809,7 @@ function countFloodPeaks_NAVD(series){
   return {minor, moderate, major};
 }
 
-/* =========================
-ANNUAL COUNTS
-Completed years: TXT daily events (NAVD)
-Current year: overwritten by LIVE YTD peaks (15-min IV)
-========================= */
+/* ---------------- Annual counts (TXT completed years, LIVE current year overwrite) ---------------- */
 function countAnnualFloodsFromTXT(eventsNavd){
   const T = THRESH.NAVD88;
   const byYear = new Map();
@@ -916,9 +854,7 @@ function overwriteCurrentYearBarWithLiveCounts(liveCounts){
   annualMajor[idx] = liveCounts.major;
 }
 
-/* =========================
-ANNUAL CHART
-========================= */
+/* ---------------- Annual chart ---------------- */
 function ensureAnnual(){
   if(annualChart) return;
   annualChart=new Chart($("annualChart"),{
@@ -965,11 +901,7 @@ function renderAnnual(){
   annualChart.update();
 }
 
-/* =========================
-TIMESERIES CHART (24h obs + 72h pred)
-- OBS: fixed 15-min grid (null gaps; no interpolation)
-- PRED: NOAA 6-min series appended
-========================= */
+/* ---------------- Timeseries chart (24h obs + 72h pred) ---------------- */
 function buildDailyTickCallbackSkipFirstDay(labels){
   const seenDays = new Set();
   let firstDay = null;
@@ -1096,13 +1028,9 @@ function updateTsChartFromState(){
   tsChart.update();
 }
 
-/* =========================
-TXT-driven historic filter
-========================= */
+/* ---------------- TXT-driven historic filter ---------------- */
 function hydrateHistoricFromTXT(){
-  HIGH_TIDES_NAVD = (DAILY_EVENTS_NAVD||[]).map(e=>({
-    t:e.t, ft:e.ft, kind:e.kind, y:e.y, m:e.m, d:e.d
-  }));
+  HIGH_TIDES_NAVD = (DAILY_EVENTS_NAVD||[]).map(e=>({t:e.t, ft:e.ft, kind:e.kind, y:e.y, m:e.m, d:e.d}));
   HIGH_TIDES_NAVD.sort((a,b)=>new Date(b.t)-new Date(a.t));
   applyFilter();
   histMeta.textContent = HIGH_TIDES_NAVD.length
@@ -1142,9 +1070,7 @@ function applyFilter(){
   renderHist(rows);
 }
 
-/* =========================
-Monthly averages (from TXT events)
-========================= */
+/* ---------------- Monthly averages (TXT events) ---------------- */
 function monthNameFromIndex(i){
   const d = new Date(Date.UTC(2020, i-1, 15, 0, 0, 0));
   return fmtMonthName.format(d);
@@ -1231,7 +1157,7 @@ function ensureMonthAvgChart(){
     data:{ labels:[], datasets:[
       {label:"Avg Minor", data:[], stack:"m", borderWidth:0, backgroundColor:"rgba(251,191,36,.85)"},
       {label:"Avg Moderate", data:[], stack:"m", borderWidth:0, backgroundColor:"rgba(251,113,133,.80)"},
-      {label:"Avg Major", data:[], stack:"m", borderWidth:0, backgroundColor:"rgba(167,139,250,.80)"},
+      {label:"Avg Major", data:[], stack:"m", borderWidth:0, backgroundColor:"rgba(167,139,250,.80)"}
     ]},
     options:{
       responsive:true,
@@ -1268,9 +1194,7 @@ function updateMonthAveragesFromTXT(){
   renderMonthAveragesChart(stats);
 }
 
-/* =========================
-LIVE: current conditions + daily range + overwrite current year bar
-========================= */
+/* ---------------- LIVE: current conditions + daily range + overwrite current year bar ---------------- */
 async function updateLiveAndAnnualCounts(){
   buildAnnualArraysFromTXT_completedYears();
   renderAnnual();
@@ -1310,9 +1234,7 @@ async function updateLiveAndAnnualCounts(){
   renderAnnual();
 }
 
-/* =========================
-Timeseries update (observed + predictions)
-========================= */
+/* ---------------- Timeseries update (observed + predictions) ---------------- */
 async function updateTimeseries(){
   const end = new Date();
   const start = new Date(end.getTime() - 24*3600*1000);
@@ -1331,18 +1253,10 @@ async function updateTimeseries(){
     fcNote.textContent = `NOAA predictions unavailable: ${e?.message || String(e)}`;
   }
 
-  if(!obs.length && !STATE.pred72Mllw.length){
-    fcNote.textContent = fcNote.textContent || "Observed and predictions unavailable.";
-  }else if(!obs.length && STATE.pred72Mllw.length){
-    fcNote.textContent = fcNote.textContent || "Observed unavailable; showing NOAA predictions only.";
-  }
-
   updateTsChartFromState();
 }
 
-/* =========================
-TXT init + boot
-========================= */
+/* ---------------- Init TXT-backed history ---------------- */
 async function initTXTBackedHistory(){
   await loadDailyTidesFromTXT();
   hydrateHistoricFromTXT();
@@ -1351,13 +1265,9 @@ async function initTXTBackedHistory(){
   renderAnnual();
 }
 
+/* ---------------- Boot ---------------- */
 async function boot(){
   updateUnitsAndBadges();
-
-  if(!minElevEl.value || isNaN(+minElevEl.value)){
-    minElevEl.value = THRESH[DISPLAY_DATUM].minorLow.toFixed(2);
-  }
-
   renderTopTen();
 
   const results = await Promise.allSettled([
@@ -1367,19 +1277,15 @@ async function boot(){
     updateTimeseries()
   ]);
 
-  const txtRes = results[1];
-  if(txtRes.status === "rejected"){
-    console.error("TXT init failed:", txtRes.reason);
+  if(results[1].status==="rejected"){
+    console.error("TXT init failed:", results[1].reason);
     histMeta.textContent =
-      "TXT load failed. Place it at: data/daily_tides_navd88.txt (case-sensitive). " +
-      "See TXT status line for attempted URLs.";
+      "TXT load failed. Ensure file is committed at data/daily_tides_navd88.txt (case-sensitive). See TXT status line.";
     monthAvgMeta.textContent =
       "TXT load failed (monthly averages unavailable). See TXT status line.";
   }
-
-  const liveRes = results[2];
-  if(liveRes.status === "rejected"){
-    console.error("Live init failed:", liveRes.reason);
+  if(results[2].status==="rejected"){
+    console.error("Live init failed:", results[2].reason);
     stageTextEl.textContent="LIVE DATA UNAVAILABLE";
     lastPill.textContent="Last updated: —";
     curFtEl.textContent="—";
@@ -1387,9 +1293,7 @@ async function boot(){
   }
 }
 
-/* =========================
-Controls
-========================= */
+/* ---------------- Controls ---------------- */
 $("applyBtn").addEventListener("click", applyFilter);
 
 $("resetBtn").addEventListener("click", ()=>{
@@ -1418,7 +1322,6 @@ datumBtn.addEventListener("click", ()=>{
   updateMonthAveragesFromTXT();
   renderAnnual();
 
-  // live repaint
   if(STATE.lastNavd){
     curFtEl.textContent = toDisplayFtFromNavd(STATE.lastNavd.ft).toFixed(2);
     setStage(STATE.lastNavd.ft);
@@ -1428,13 +1331,10 @@ datumBtn.addEventListener("click", ()=>{
     dayMaxFtEl.textContent = toDisplayFtFromNavd(dmx.ft).toFixed(2);
     dayMinFtEl.textContent = toDisplayFtFromNavd(dmn.ft).toFixed(2);
   }
-
   updateTsChartFromState();
 });
 
-/* =========================
-Start + Auto-refresh
-========================= */
+/* ---------------- Start + Auto-refresh ---------------- */
 boot().catch(err=>{
   console.error(err);
   stageTextEl.textContent="LIVE DATA UNAVAILABLE";
