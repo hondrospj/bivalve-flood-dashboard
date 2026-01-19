@@ -90,31 +90,42 @@
       margin:0;font-size:12.5px;letter-spacing:.22px;text-transform:uppercase;color:var(--muted);font-weight:950
     }
 
+    /* tighter live card spacing */
+    .tightTop{margin-bottom:8px}
+
     .metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
     @media(max-width:720px){.metrics{grid-template-columns:1fr}}
+
     .metric{background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:12px;min-height:88px}
     .ml{color:var(--muted);font-weight:950;font-size:11.5px;text-transform:uppercase;letter-spacing:.2px;margin-bottom:8px}
     .mv{display:flex;align-items:baseline;gap:8px;font-weight:950;font-size:28px;letter-spacing:.2px}
     .unit{color:var(--muted);font-size:12px;font-weight:950}
     .ms{margin-top:6px;color:var(--muted);font-size:12.5px;line-height:1.25}
 
-    .stages{
-      display:grid;grid-template-columns:repeat(3, minmax(220px,1fr));
-      gap:10px;overflow-x:auto;padding-bottom:2px;-webkit-overflow-scrolling:touch;margin-top:8px
-    }
-    @media(max-width:760px){.stages{grid-template-columns:1fr;overflow-x:visible}}
+    /* Combined daily tile */
+    .splitRow{display:flex;gap:14px;align-items:baseline;flex-wrap:wrap}
+    .splitRow b{font-size:28px}
+    .subCap{color:var(--muted);font-weight:950;font-size:11px;letter-spacing:.2px;text-transform:uppercase}
 
-    /* FIX: prevent badge overlap/overflow */
+    /* stages: auto-fit, no big blank */
+    .stages{
+      display:grid;
+      grid-template-columns:repeat(3, minmax(0,1fr));
+      gap:10px;
+      margin-top:10px;
+    }
+    @media(max-width:760px){
+      .stages{grid-template-columns:1fr}
+    }
     .stage{
       background:var(--card2);
       border:1px solid var(--line);
       border-radius:14px;
-      padding:14px;
+      padding:12px;
       display:flex;
       align-items:center;
       justify-content:space-between;
       gap:10px;
-      min-width:220px;
       overflow:hidden;
     }
     .stageName{
@@ -158,6 +169,9 @@
     .btn{cursor:pointer}
     .btn:hover{filter:brightness(1.06)}
     .hint{color:var(--muted);font-size:12.5px;line-height:1.25}
+
+    /* remove extra bottom slack inside live card */
+    #tsNote{margin-top:8px}
   </style>
 </head>
 
@@ -190,8 +204,8 @@
 
     <div class="grid">
       <!-- LEFT -->
-      <div class="card">
-        <div class="hrow">
+      <div class="card" id="liveCard">
+        <div class="hrow tightTop">
           <h2>Live conditions</h2>
           <div class="kicker" style="text-transform:none" id="statusText">—</div>
         </div>
@@ -209,16 +223,14 @@
             <div class="ms" id="monMaxMeta">—</div>
           </div>
 
-          <div class="metric">
-            <div class="ml">Daily maximum (today)</div>
-            <div class="mv"><span id="dayMaxFt">—</span><span class="unit">ft</span></div>
-            <div class="ms" id="dayMaxMeta">—</div>
-          </div>
-
-          <div class="metric">
-            <div class="ml">Daily minimum (today)</div>
-            <div class="mv"><span id="dayMinFt">—</span><span class="unit">ft</span></div>
-            <div class="ms" id="dayMinMeta">—</div>
+          <!-- Combined daily max/min tile -->
+          <div class="metric" style="grid-column:1 / -1">
+            <div class="ml">Daily range (today)</div>
+            <div class="splitRow">
+              <div><div class="subCap">Max</div><b id="dayMaxFt">—</b> <span class="unit">ft</span></div>
+              <div><div class="subCap">Min</div><b id="dayMinFt">—</b> <span class="unit">ft</span></div>
+            </div>
+            <div class="ms" id="dayRangeMeta">—</div>
           </div>
         </div>
 
@@ -314,8 +326,6 @@
           <tbody id="histBody"></tbody>
         </table>
       </div>
-
-      <div class="foot">This table uses an indexed peak list (fast) — not a 365-day window.</div>
     </div>
 
   </div>
@@ -372,8 +382,8 @@ const providedMajor=providedMinor.map(()=>0);
 const $=id=>document.getElementById(id);
 const curFtEl=$("curFt"), curMetaEl=$("curMeta");
 const monMaxFtEl=$("monMaxFt"), monMaxMetaEl=$("monMaxMeta");
-const dayMaxFtEl=$("dayMaxFt"), dayMaxMetaEl=$("dayMaxMeta");
-const dayMinFtEl=$("dayMinFt"), dayMinMetaEl=$("dayMinMeta");
+const dayMaxFtEl=$("dayMaxFt"), dayMinFtEl=$("dayMinFt");
+const dayRangeMetaEl=$("dayRangeMeta");
 const stageTextEl=$("stageText"), stageDotEl=$("stageDot");
 const statusText=$("statusText");
 const lastUpdatedPill=$("lastUpdatedPill");
@@ -397,11 +407,9 @@ function fmtNY(iso){
 function getNYParts(date=new Date()){
   const fmt=new Intl.DateTimeFormat("en-US",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit"});
   const p=fmt.formatToParts(date);
-  return {
-    y:+(p.find(x=>x.type==="year")?.value||0),
-    m:+(p.find(x=>x.type==="month")?.value||0),
-    d:+(p.find(x=>x.type==="day")?.value||0)
-  };
+  return { y:+(p.find(x=>x.type==="year")?.value||0),
+           m:+(p.find(x=>x.type==="month")?.value||0),
+           d:+(p.find(x=>x.type==="day")?.value||0) };
 }
 function startOfTodayNY_ISO(){
   const {y,m,d}=getNYParts(new Date());
@@ -419,10 +427,7 @@ function classify(ft){
   if(ft>=THRESH.minorLow) return {label:"MINOR FLOODING", color:"var(--minor)", glow:"rgba(251,191,36,.22)", short:"Minor"};
   return {label:"BELOW FLOOD STAGE", color:"var(--ok)", glow:"rgba(45,212,191,.18)", short:"Below"};
 }
-function stageTag(ft){
-  const c=classify(ft);
-  return {txt:c.short, c:c.color};
-}
+function stageTag(ft){ const c=classify(ft); return {txt:c.short, c:c.color}; }
 function maxPoint(arr){ return arr.reduce((a,b)=>b.ft>a.ft?b:a, arr[0]); }
 function minPoint(arr){ return arr.reduce((a,b)=>b.ft<a.ft?b:a, arr[0]); }
 
@@ -439,7 +444,6 @@ async function fetchIV({startISO=null,endISO=null,parameterCd=PRIMARY_PARAM,peri
   if(period) url.searchParams.set("period",period);
   if(startISO) url.searchParams.set("startDT",startISO);
   if(endISO) url.searchParams.set("endDT",endISO);
-
   const res=await fetch(url.toString(),{cache:"no-store"});
   if(!res.ok) throw new Error("USGS IV failed "+res.status);
   return res.json();
@@ -464,25 +468,22 @@ function ymd(d){ return d.toISOString().slice(0,10).replaceAll("-",""); }
 async function fetchNOAA72h_NAVD88(){
   const now=new Date();
   const end=new Date(now.getTime()+72*3600*1000);
-
   const base="https://api.tidesandcurrents.noaa.gov/api/prod/datagetter";
   const qs=new URLSearchParams({
     product:"predictions",
     application:"cupajoe",
-    station:NOAA_STATION,
+    station:"8536110",
     begin_date:ymd(now),
     end_date:ymd(end),
     time_zone:"gmt",
     units:"english",
     interval:"6",
     format:"json",
-    datum:NOAA_DATUM
+    datum:"MLLW"
   });
-
   const res=await fetch(base+"?"+qs.toString(),{cache:"no-store"});
   if(!res.ok) throw new Error("NOAA predictions failed "+res.status);
   const j=await res.json();
-
   return (j?.predictions||[])
     .map(r=>({t:r.t.replace(" ","T")+"Z", ft:(+r.v)+MLLW_TO_NAVD88}))
     .filter(p=>Number.isFinite(p.ft));
@@ -532,7 +533,7 @@ function renderTopTen(){
 }
 
 /* =========================
-   Annual chart (FORCED 2000 → present)
+   Annual chart (2000 → present; live year updated)
 ========================= */
 function buildAnnualRows(){
   const nowY = new Date().getFullYear();
@@ -725,16 +726,15 @@ async function updateLive(){
   if(daySeries.length){
     const dmx=maxPoint(daySeries), dmn=minPoint(daySeries);
     dayMaxFtEl.textContent=dmx.ft.toFixed(2);
-    dayMaxMetaEl.textContent="Max @ "+fmtNY(dmx.t);
     dayMinFtEl.textContent=dmn.ft.toFixed(2);
-    dayMinMetaEl.textContent="Min @ "+fmtNY(dmn.t);
+    dayRangeMetaEl.textContent=`Max @ ${fmtNY(dmx.t)} · Min @ ${fmtNY(dmn.t)}`;
   }else{
-    dayMaxFtEl.textContent="—"; dayMaxMetaEl.textContent="—";
-    dayMinFtEl.textContent="—"; dayMinMetaEl.textContent="—";
+    dayMaxFtEl.textContent="—";
+    dayMinFtEl.textContent="—";
+    dayRangeMetaEl.textContent="—";
   }
 
   statusText.textContent="";
-
   tsNote.textContent = `Flood stages: Minor ${THRESH.minorLow.toFixed(2)}–${THRESH.moderateLow.toFixed(2)} · Moderate ${THRESH.moderateLow.toFixed(2)}–${THRESH.majorLow.toFixed(2)} · Major ≥ ${THRESH.majorLow.toFixed(2)} ft`;
 }
 
@@ -745,10 +745,8 @@ async function updateTimeseries(){
   const end=new Date();
   const start=new Date(end.getTime()-72*3600*1000);
   const obs=await fetchWithFallback({startISO:start.toISOString(), endISO:end.toISOString()});
-
   let fc=[];
   try{ fc=await fetchNOAA72h_NAVD88(); }catch{ fc=[]; }
-
   buildTsChart(obs, fc);
 }
 
