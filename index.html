@@ -168,7 +168,7 @@
             <div class="ml">Current water elevation</div>
             <div class="mv"><span id="curFt">—</span><span class="unit">ft NAVD88</span></div>
             <div class="ms" id="curMeta">Updated: —</div>
-            <!-- NEW: only fills when stage >= Moderate -->
+            <!-- #8 -->
             <div class="ms" id="nearMeta" style="display:none"></div>
           </div>
 
@@ -300,9 +300,12 @@ const MLLW_TO_NAVD88_OFFSET_FT = -3.41;
 const THRESH={minorLow:4.19, moderateLow:5.19, majorLow:6.19};
 
 /* #8 settings */
-const NEAR_TOL_FT = 0.20;                // within ±0.2 ft
-const NEAR_EXCLUDE_MINUTES = 45;         // don't match the current tide cycle point
-const NEAR_SEARCH_WINDOWS_DAYS = [180, 365*3, 365*10]; // progressively widen search
+const NEAR_TOL_FT = 0.20;
+const NEAR_EXCLUDE_MINUTES = 45;
+const NEAR_SEARCH_WINDOWS_DAYS = [180, 365*3, 365*10];
+
+/* NEW: peak counting settings (two floods per day possible) */
+const PEAK_MIN_SEP_MINUTES = 300; // 5 hours: allows 2/day but avoids counting the same peak repeatedly
 
 /* NWS banner point */
 const ALERT_POINT={lat:39.2325, lon:-75.0380};
@@ -324,12 +327,12 @@ const TOP_TEN=[
   {date:"03-09-2024", ft:5.39}
 ];
 
-/* Annual flooding counts (2000–2025) */
-const START_YEAR=2000, END_YEAR=2025;
-const providedMinor=[0,0,1,20,13,25,19,16,20,29,25,30,23,20,23,11,23,34,40,44,35,31,14,41,65,38];
-const providedModerate=[0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,2,0,2,0,1,0,1,0,3,1];
-const providedMajor=providedMinor.map(()=>0);
-providedMajor[2012-2000]=1;
+/* Annual flooding counts baseline (2000–2025) */
+const BASE_START_YEAR=2000, BASE_END_YEAR=2025;
+const baseMinor=[0,0,1,20,13,25,19,16,20,29,25,30,23,20,23,11,23,34,40,44,35,31,14,41,65,38];
+const baseModerate=[0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,2,0,2,0,1,0,1,0,3,1];
+const baseMajor=baseMinor.map(()=>0);
+baseMajor[2012-2000]=1;
 
 /* DOM */
 const $=id=>document.getElementById(id);
@@ -377,6 +380,11 @@ function startOfMonthEST_ISO(){
   const {y,m}=getESTParts(new Date());
   return new Date(Date.UTC(y,m-1,1,0,0,0)).toISOString();
 }
+function startOfYearEST_ISO(y){
+  // midnight EST on Jan 1 => UTC+5
+  // easiest: build UTC at 00:00Z and just use as startDT; USGS accepts ISO
+  return new Date(Date.UTC(y,0,1,0,0,0)).toISOString();
+}
 function nowISO(){ return new Date().toISOString(); }
 
 /* Stage classify */
@@ -418,7 +426,11 @@ async function fetchWithFallback(opts){
   return extractSeries(j);
 }
 
-/* NOAA predictions */
+/* NOAA predictions
+   FIX #1-hour gap:
+   - Start predictions at the last observed time (rounded forward to next 6-min tick).
+   - Parse timestamps with explicit -05:00 so Chart/Date doesn't drift.
+*/
 function toCOOPSLocalString(date){
   const parts = new Intl.DateTimeFormat("en-US",{
     timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit",
@@ -431,9 +443,16 @@ function toCOOPSLocalString(date){
   const mm=parts.find(p=>p.type==="minute").value;
   return `${y}${m}${d} ${hh}:${mm}`;
 }
-async function fetchCOOPSPredictions72h_NAVD88(){
-  const start=new Date();
-  const end=new Date(start.getTime()+72*3600*1000);
+function roundUpTo6Min(d){
+  const ms = d.getTime();
+  const step = 6*60*1000;
+  const r = Math.ceil(ms/step)*step;
+  return new Date(r);
+}
+async function fetchCOOPSPredictions_NAVD88({beginDate=null, hours=72}={}){
+  const start = beginDate ? new Date(beginDate) : new Date();
+  const begin = roundUpTo6Min(start);
+  const end = new Date(begin.getTime()+hours*3600*1000);
 
   const url=new URL("https://api.tidesandcurrents.noaa.gov/api/prod/datagetter");
   url.searchParams.set("product","predictions");
@@ -444,15 +463,17 @@ async function fetchCOOPSPredictions72h_NAVD88(){
   url.searchParams.set("units","english");
   url.searchParams.set("interval",COOPS_INTERVAL);
   url.searchParams.set("format","json");
-  url.searchParams.set("begin_date",toCOOPSLocalString(start));
+  url.searchParams.set("begin_date",toCOOPSLocalString(begin));
   url.searchParams.set("end_date",toCOOPSLocalString(end));
 
   const res=await fetch(url.toString(),{cache:"no-store"});
   if(!res.ok) throw new Error("COOPS predictions failed "+res.status);
   const j=await res.json();
   const arr=j?.predictions||[];
+
   return arr.map(p=>{
-    const t=p.t.replace(" ","T")+":00";
+    // COOPS gives local time "YYYY-MM-DD HH:MM" -> force EST explicitly
+    const t = p.t.replace(" ","T")+":00-05:00";
     const navd=(+p.v) + MLLW_TO_NAVD88_OFFSET_FT;
     return {t, ft:navd};
   }).filter(p=>Number.isFinite(p.ft));
@@ -492,9 +513,77 @@ function renderTopTen(){
   });
 }
 
-/* Annual chart */
-const YEARS=Array.from({length:END_YEAR-START_YEAR+1},(_,i)=>START_YEAR+i);
+/* NEW: compute flood peaks (counts can be 2/day) */
+function countFloodPeaks(series){
+  if(!series || series.length<3) return {minor:0, moderate:0, major:0};
+  const pts = [...series].sort((a,b)=>new Date(a.t)-new Date(b.t));
+
+  // local maxima above minor
+  const candidates=[];
+  for(let i=1;i<pts.length-1;i++){
+    const a=pts[i-1], b=pts[i], c=pts[i+1];
+    if(b.ft>=THRESH.minorLow && b.ft>=a.ft && b.ft>=c.ft){
+      // strict-ish peak: must be >= neighbors and not a flat plateau start
+      if(!(b.ft===a.ft && b.ft===c.ft)) candidates.push(b);
+    }
+  }
+  if(!candidates.length) return {minor:0, moderate:0, major:0};
+
+  // enforce min separation by keeping highest in each window
+  const minSepMs = PEAK_MIN_SEP_MINUTES*60*1000;
+  const kept=[];
+  let cur = candidates[0];
+  for(let i=1;i<candidates.length;i++){
+    const p=candidates[i];
+    if(new Date(p.t)-new Date(cur.t) <= minSepMs){
+      if(p.ft>cur.ft) cur=p;
+    }else{
+      kept.push(cur);
+      cur=p;
+    }
+  }
+  kept.push(cur);
+
+  let minor=0, moderate=0, major=0;
+  for(const p of kept){
+    if(p.ft>=THRESH.majorLow) major++;
+    else if(p.ft>=THRESH.moderateLow) moderate++;
+    else if(p.ft>=THRESH.minorLow) minor++;
+  }
+  return {minor, moderate, major};
+}
+
+/* Annual chart (NOW updates daily using live data for current year) */
 let annualChart=null;
+let YEARS=[];
+let annualMinor=[], annualModerate=[], annualMajor=[];
+function buildAnnualArraysWithLiveCurrentYear(liveCounts){
+  const {y:curYear}=getESTParts(new Date());
+  const endYear = Math.max(BASE_END_YEAR, curYear);
+
+  YEARS = Array.from({length:endYear-BASE_START_YEAR+1},(_,i)=>BASE_START_YEAR+i);
+
+  annualMinor = YEARS.map(y=>{
+    if(y<=BASE_END_YEAR) return baseMinor[y-BASE_START_YEAR] ?? 0;
+    return 0;
+  });
+  annualModerate = YEARS.map(y=>{
+    if(y<=BASE_END_YEAR) return baseModerate[y-BASE_START_YEAR] ?? 0;
+    return 0;
+  });
+  annualMajor = YEARS.map(y=>{
+    if(y<=BASE_END_YEAR) return baseMajor[y-BASE_START_YEAR] ?? 0;
+    return 0;
+  });
+
+  // overwrite the current year bar with live-to-date counts (this is the “updates every day” piece)
+  const idx = YEARS.indexOf(curYear);
+  if(idx>=0 && liveCounts){
+    annualMinor[idx]=liveCounts.minor;
+    annualModerate[idx]=liveCounts.moderate;
+    annualMajor[idx]=liveCounts.major;
+  }
+}
 function renderAnnual(){
   if(annualChart) annualChart.destroy();
   annualChart=new Chart($("annualChart"),{
@@ -502,9 +591,9 @@ function renderAnnual(){
     data:{
       labels:YEARS,
       datasets:[
-        {label:"Minor",data:providedMinor,stack:"f",borderWidth:0,backgroundColor:"rgba(251,191,36,.85)"},
-        {label:"Moderate",data:providedModerate,stack:"f",borderWidth:0,backgroundColor:"rgba(251,113,133,.80)"},
-        {label:"Major",data:providedMajor,stack:"f",borderWidth:0,backgroundColor:"rgba(167,139,250,.80)"}
+        {label:"Minor",data:annualMinor,stack:"f",borderWidth:0,backgroundColor:"rgba(251,191,36,.85)"},
+        {label:"Moderate",data:annualModerate,stack:"f",borderWidth:0,backgroundColor:"rgba(251,113,133,.80)"},
+        {label:"Major",data:annualMajor,stack:"f",borderWidth:0,backgroundColor:"rgba(167,139,250,.80)"}
       ]
     },
     options:{
@@ -591,7 +680,7 @@ function buildTsChart(obs, fc){
     }
   });
 
-  /* User requested removal of the "Obs: ... Pred: ..." line */
+  // keep removed per your request
   fcNote.textContent = "";
 }
 
@@ -645,12 +734,10 @@ function setStage(ft){
   stageDotEl.style.boxShadow=`0 0 0 4px ${c.glow}`;
 }
 
-/* #8: last time within ±0.2 ft of current moderate+ reading */
+/* #8 last near match */
 let nearCacheKey = null;
 let nearCacheText = null;
-
 function daysToMs(d){ return d*24*3600*1000; }
-
 async function findLastNearMatch(targetFt, endISO){
   const end = new Date(endISO);
   const excludeBefore = new Date(end.getTime() - NEAR_EXCLUDE_MINUTES*60*1000);
@@ -659,22 +746,18 @@ async function findLastNearMatch(targetFt, endISO){
     const start = new Date(end.getTime() - daysToMs(days));
     const series = await fetchWithFallback({startISO:start.toISOString(), endISO:end.toISOString()});
     if(!series.length) continue;
-
-    // scan from most recent backwards
     for(let i=series.length-1;i>=0;i--){
       const p = series[i];
       const t = new Date(p.t);
-      if(t >= excludeBefore) continue; // avoid "matching itself"
+      if(t >= excludeBefore) continue;
       if(Math.abs(p.ft - targetFt) <= NEAR_TOL_FT){
-        return p; // {t, ft}
+        return p;
       }
     }
   }
   return null;
 }
-
 async function updateNearMetaIfNeeded(currentFt, currentISO){
-  // Only for moderate or higher
   if(currentFt < THRESH.moderateLow){
     nearMetaEl.style.display="none";
     nearMetaEl.textContent="";
@@ -682,8 +765,6 @@ async function updateNearMetaIfNeeded(currentFt, currentISO){
     nearCacheText = null;
     return;
   }
-
-  // Cache per "rounded target + date-hour" to avoid re-querying every 5 min
   const rounded = (Math.round(currentFt*100)/100).toFixed(2);
   const bucket = new Date(currentISO);
   const bucketKey = `${rounded}|${bucket.getUTCFullYear()}-${bucket.getUTCMonth()+1}-${bucket.getUTCDate()}-${bucket.getUTCHours()}`;
@@ -692,7 +773,6 @@ async function updateNearMetaIfNeeded(currentFt, currentISO){
     nearMetaEl.textContent=nearCacheText;
     return;
   }
-
   nearMetaEl.style.display="block";
   nearMetaEl.textContent=`Finding last time within ±${NEAR_TOL_FT.toFixed(2)} ft…`;
 
@@ -749,13 +829,33 @@ async function updateLive(){
   }
 }
 
+/* NEW: update annual counts daily from live data (current year) */
+async function updateAnnualCountsLive(){
+  const {y:curYear}=getESTParts(new Date());
+  const startISO = startOfYearEST_ISO(curYear);
+  const endISO = nowISO();
+
+  // This is ~1 year of 15-min data -> reasonable size
+  const series = await fetchWithFallback({startISO, endISO});
+  const counts = countFloodPeaks(series);
+
+  buildAnnualArraysWithLiveCurrentYear(counts);
+  renderAnnual();
+}
+
 /* 72h combined chart */
 async function updateTimeseries(){
   const end=new Date();
   const start=new Date(end.getTime()-72*3600*1000);
   const obs=await fetchWithFallback({startISO:start.toISOString(), endISO:end.toISOString()});
+
+  // FIX: start predictions at last observed time (reduces “gap”)
+  const lastObsTime = obs.length ? obs[obs.length-1].t : null;
   let fc=[];
-  try{ fc=await fetchCOOPSPredictions72h_NAVD88(); }catch{ fc=[]; }
+  try{
+    fc=await fetchCOOPSPredictions_NAVD88({beginDate:lastObsTime || new Date().toISOString(), hours:72});
+  }catch{ fc=[]; }
+
   buildTsChart(obs, fc);
 }
 
@@ -769,11 +869,11 @@ $("resetBtn").addEventListener("click", ()=>{
 
 async function boot(){
   renderTopTen();
-  renderAnnual();
   await updateAlerts();
   await loadHistoric();
   await updateLive();
-  await updateTimeseries();
+  await updateAnnualCountsLive();   // NEW: dynamic annual counts (updates every refresh)
+  await updateTimeseries();         // FIXED: align obs/pred times
 }
 
 boot().catch(err=>{
@@ -782,6 +882,7 @@ boot().catch(err=>{
   lastPill.textContent="Last updated: —";
 });
 
+// refresh every 5 minutes
 setInterval(()=>boot().catch(()=>{}), 5*60*1000);
 </script>
 </body>
