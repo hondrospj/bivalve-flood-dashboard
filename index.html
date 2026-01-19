@@ -1,1 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Bivalve, NJ — Tidal Flood Dashboard</title>
+  <meta name="description" content="Live & historic tidal flooding dashboard for Bivalve, NJ (USGS) with Cape May (NOAA) projections." />
+
+  <!-- Tailwind (no build) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <style>
+    /* small polish: nicer scrollbars on desktop */
+    ::-webkit-scrollbar{height:10px;width:10px}
+    ::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:999px}
+  </style>
+</head>
+
+<body class="bg-slate-50 text-slate-900">
+  <!-- Banner (hidden unless advisory) -->
+  <div id="banner" class="hidden w-full bg-amber-100 border-b border-amber-200">
+    <div class="max-w-6xl mx-auto px-4 py-2 text-sm flex items-center justify-between gap-3">
+      <div class="flex items-center gap-2">
+        <span class="inline-flex h-2 w-2 rounded-full bg-amber-500"></span>
+        <span id="bannerText" class="font-medium"></span>
+      </div>
+      <a id="bannerLink" class="text-amber-800 underline underline-offset-2" target="_blank" rel="noreferrer">Details</a>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header class="max-w-6xl mx-auto px-4 pt-6 pb-4 flex items-center justify-between gap-4">
+    <a href="https://cupajoe.live/" class="flex items-center gap-3" aria-label="Cupajoe home">
+      <img src="assets/cupajoe-logo.png" alt="Cupajoe" class="h-10 w-10 rounded-xl object-cover shadow-sm" />
+      <div>
+        <div class="text-lg font-semibold leading-tight">Bivalve Tidal Flooding</div>
+        <div class="text-xs text-slate-500">USGS 15-min observations + NOAA Cape May 72-hr predictions</div>
+      </div>
+    </a>
+
+    <div class="text-right">
+      <div class="text-xs text-slate-500">Last updated</div>
+      <div id="updatedAt" class="text-sm font-medium">—</div>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="max-w-6xl mx-auto px-4 pb-10 grid gap-4">
+    <!-- KPI row -->
+    <section class="grid md:grid-cols-4 gap-4">
+      <div class="rounded-2xl bg-white shadow-sm border border-slate-200 p-4">
+        <div class="text-xs text-slate-500">Current water level (Bivalve)</div>
+        <div class="mt-1 text-3xl font-semibold"><span id="currentLevel">—</span> <span class="text-base font-medium text-slate-500">ft</span></div>
+        <div id="currentClass" class="mt-2 text-sm font-medium">—</div>
+      </div>
+
+      <div class="rounded-2xl bg-white shadow-sm border border-slate-200 p-4">
+        <div class="text-xs text-slate-500">Latest monthly max (Bivalve)</div>
+        <div class="mt-1 text-3xl font-semibold"><span id="monthlyMax">—</span> <span class="text-base font-medium text-slate-500">ft</span></div>
+        <div class="mt-2 text-xs text-slate-500" id="monthlyMaxWhen">—</div>
+      </div>
+
+      <div class="rounded-2xl bg-white shadow-sm border border-slate-200 p-4">
+        <div class="text-xs text-slate-500">Today min / max (Bivalve)</div>
+        <div class="mt-1 text-xl font-semibold">
+          <span id="todayMin">—</span> <span class="text-slate-400">/</span> <span id="todayMax">—</span>
+          <span class="text-sm font-medium text-slate-500">ft</span>
+        </div>
+        <div class="mt-2 text-xs text-slate-500">Local day</div>
+      </div>
+
+      <div class="rounded-2xl bg-white shadow-sm border border-slate-200 p-4">
+        <div class="text-xs text-slate-500">If ≥ Moderate: last within 0.2 ft</div>
+        <div class="mt-1 text-sm font-semibold" id="nearLast">—</div>
+        <div class="mt-2 text-xs text-slate-500" id="nearMeta">—</div>
+      </div>
+    </section>
+
+    <!-- Chart -->
+    <section class="rounded-2xl bg-white shadow-sm border border-slate-200 p-4">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <div>
+          <div class="text-sm font-semibold">Observed (Bivalve) vs Predicted (Cape May) — 72 hours</div>
+          <div class="text-xs text-slate-500">Both plotted in feet; predictions pulled from NOAA CO-OPS API.</div>
+        </div>
+        <div class="text-xs text-slate-500">
+          Minor: <span class="font-medium" id="minorVal">—</span> • Moderate: <span class="font-medium" id="moderateVal">—</span> • Major: <span class="font-medium" id="majorVal">—</span>
+        </div>
+      </div>
+      <div class="mt-3">
+        <canvas id="tsChart" height="110"></canvas>
+      </div>
+    </section>
+
+    <!-- Two columns -->
+    <section class="grid lg:grid-cols-2 gap-4">
+      <!-- Historic filter -->
+      <div class="rounded-2xl bg-white shadow-sm border border-slate-200 p-4">
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <div class="text-sm font-semibold">Historic tides above minor — filter by elevation</div>
+            <div class="text-xs text-slate-500">Uses your repo dataset (fast; no time window limit).</div>
+          </div>
+          <div class="flex items-center gap-2">
+            <label class="text-xs text-slate-500">≥ ft</label>
+            <input id="filterFt" type="number" step="0.01" class="w-24 rounded-xl border border-slate-300 px-2 py-1 text-sm" value="4.19" />
+          </div>
+        </div>
+
+        <div class="mt-3 max-h-72 overflow-auto border border-slate-100 rounded-xl">
+          <table class="w-full text-sm">
+            <thead class="sticky top-0 bg-slate-50">
+              <tr class="text-left text-xs text-slate-500">
+                <th class="p-2">Date/Time</th>
+                <th class="p-2">Peak (ft)</th>
+                <th class="p-2">Type</th>
+              </tr>
+            </thead>
+            <tbody id="eventsRows" class="[&>tr:nth-child(even)]:bg-slate-50"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Top ten -->
+      <div class="rounded-2xl bg-white shadow-sm border border-slate-200 p-4">
+        <div class="text-sm font-semibold">Top ten highest tides</div>
+        <div class="text-xs text-slate-500">Rank • Date • Peak • Type</div>
+
+        <div class="mt-3 overflow-auto border border-slate-100 rounded-xl">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50">
+              <tr class="text-left text-xs text-slate-500">
+                <th class="p-2">Rank</th>
+                <th class="p-2">Date</th>
+                <th class="p-2">Peak (ft)</th>
+                <th class="p-2">Type</th>
+              </tr>
+            </thead>
+            <tbody id="topTenRows" class="[&>tr:nth-child(even)]:bg-slate-50"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Annual -->
+    <section class="rounded-2xl bg-white shadow-sm border border-slate-200 p-4">
+      <div class="text-sm font-semibold">Annual tidal flooding (2000–2025)</div>
+      <div class="text-xs text-slate-500">Counts binned by minor / moderate / major (repo dataset).</div>
+      <div class="mt-3 max-h-80 overflow-auto border border-slate-100 rounded-xl">
+        <table class="w-full text-sm">
+          <thead class="sticky top-0 bg-slate-50">
+            <tr class="text-left text-xs text-slate-500">
+              <th class="p-2">Year</th>
+              <th class="p-2">Minor</th>
+              <th class="p-2">Moderate</th>
+              <th class="p-2">Major</th>
+            </tr>
+          </thead>
+          <tbody id="annualRows" class="[&>tr:nth-child(even)]:bg-slate-50"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer class="text-xs text-slate-500 px-1">
+      Data: USGS Water Services (observations) • NOAA CO-OPS API (predictions) • NWS Alerts API (advisories).
+    </footer>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
 
