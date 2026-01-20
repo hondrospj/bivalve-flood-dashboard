@@ -358,15 +358,8 @@ function navdToMllw(ft){ return ft - NAVD_MINUS_MLLW_FT; }  // navd + 3.41
 /* USGS observed (15-min IV). */
 const USGS_SITE="01412150";
 
-/* Water level ONLY (tide elevation NAVD88). */
-const USGS_PARAM_PRIMARY = "72279";
-
-/* NOAA CO-OPS predictions */
-const COOPS_STATION="8535055";
-const COOPS_APP="cupajoe.live";
-const COOPS_DATUM="MLLW";
-const COOPS_INTERVAL="6";
-const COOPS_TZ="gmt";
+/* NWPS (water.noaa.gov) total water level forecasts */
+const NWPS_GAUGE = "bvvn4";
 
 /* Flood thresholds */
 const THRESH = {
