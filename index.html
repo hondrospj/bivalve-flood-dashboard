@@ -356,7 +356,7 @@ function mllwToNavd(ft){ return ft + NAVD_MINUS_MLLW_FT; }  // mllw - 3.41
 function navdToMllw(ft){ return ft - NAVD_MINUS_MLLW_FT; }  // navd + 3.41
 
 /* USGS observed (15-min IV). */
-const USGS_SITE="01412150";
+const USGS_PARAM_PRIMARY = "72279";
 
 /* NWPS (water.noaa.gov) total water level forecasts */
 const NWPS_GAUGE = "bvvn4";
@@ -680,8 +680,11 @@ function extractWaterLevelSeries_NAVD88(json){
 }
 
 async function fetchObservedSeries({startISO=null,endISO=null,period=null}={}){
+  const j = await fetchIV({startISO,endISO,period});
+  return extractWaterLevelSeries_NAVD88(j);
+}
 
-  /* =========================
+/* =========================
 NWPS total water level forecast (water.noaa.gov)
 ========================= */
 async function fetchNWPSForecast({ hours = 72 } = {}) {
@@ -690,7 +693,6 @@ async function fetchNWPSForecast({ hours = 72 } = {}) {
   if (!res.ok) throw new Error("NWPS stageflow failed " + res.status);
 
   const j = await res.json();
-
   const raw = j?.forecast?.data || [];
   const now = Date.now();
   const end = now + hours * 3600 * 1000;
@@ -1179,10 +1181,11 @@ function updateTsChartFromState(){
   const predStartISO = obsGrid.labels[obsGrid.labels.length-1] || endISO;
   const predEndISO = new Date(new Date(predStartISO).getTime() + 72*3600*1000).toISOString();
 
-  const predGrid = resampleTo15Min_MLLW(STATE.pred72Mllw || [], predStartISO, predEndISO);
-  let predValsMllw = predGrid.values.map(v => (v===null ? null : v));
-  predValsMllw = filterSpikes15Min(predValsMllw, TS_MAX_DELTA_FT);
-  const predValsDisplay = predValsMllw.map(v => (v===null ? null : toDisplayFtFromMllw(v)));
+ const predGrid = buildFixedGrid15Min_fromAny(STATE.pred72Mllw || [], predStartISO, predEndISO);
+let predValsNavd = predGrid.values.map(v => (v===null ? null : v));
+predValsNavd = filterSpikes15Min(predValsNavd, TS_MAX_DELTA_FT);
+const predValsDisplay = predValsNavd.map(v => (v===null ? null : toDisplayFtFromNavd(v)));
+
 
   /* Combine: obs labels + pred labels (pred begins immediately after obs window) */
   const labels = [...obsGrid.labels, ...predGrid.labels];
@@ -1424,13 +1427,13 @@ async function updateTimeseries(){
   const lastObsTime = obs.length ? obs[obs.length-1].t : null;
 
   try{
-    const beginISO = lastObsTime ? ceilToNext15MinISO(lastObsTime) : new Date().toISOString();
-    const fc = await fetchCOOPSPredictions_MLLW({beginDateISO:beginISO, hours:72});
-    STATE.pred72Mllw = fc;
-    fcNote.textContent = fc.length ? "" : "NOAA predictions returned no points.";
+ const fc = await fetchNWPSForecast({ hours:72 });
+STATE.pred72Mllw = fc;
+fcNote.textContent = fc.length ? "" : "NOAA forecast returned no points.";
+
   }catch(e){
     STATE.pred72Mllw = [];
-    fcNote.textContent = `NOAA predictions unavailable: ${e?.message || String(e)}`;
+    fcNote.textContent = `NOAA forecast unavailable: ${e?.message || String(e)}`;
   }
 
   updateTsChartFromState();
