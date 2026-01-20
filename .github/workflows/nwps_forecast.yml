@@ -1,0 +1,91 @@
+name: Update NWPS Forecast (BVVN4)
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/30 * * * *"   # every 30 minutes (UTC)
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Fetch NWPS forecast + write JSON
+        run: |
+          mkdir -p data
+
+          # Pull NWPS time-series JSON (water.noaa.gov API)
+          # This endpoint is stable for NWPS gauges and returns time series.
+          curl -L --fail \
+            "https://api.water.noaa.gov/nwps/v1/gauges/bvvn4/stageflow" \
+            -o /tmp/nwps.json
+
+          # Convert NWPS response to the simple array your dashboard expects:
+          # [{ "t": "...ISO...", "ft": 5.12 }, ...]
+          python3 - << 'PY'
+          import json, sys
+
+          src = json.load(open("/tmp/nwps.json","r"))
+
+          # Try common NWPS shapes
+          series = None
+
+          # Some NWPS responses use: {"data":[{"validTime":"...","primary":x},...]}
+          if isinstance(src, dict) and isinstance(src.get("data"), list):
+            series = src["data"]
+
+            out=[]
+            for row in series:
+              t = row.get("validTime") or row.get("time") or row.get("t")
+              ft = row.get("primary") or row.get("value") or row.get("ft")
+              try:
+                ft = float(ft)
+              except:
+                continue
+              if t:
+                out.append({"t": t, "ft": ft})
+
+            json.dump(out, open("data/nwps_forecast.json","w"), indent=2)
+            print(f"Wrote {len(out)} points to data/nwps_forecast.json")
+            sys.exit(0)
+
+          # Some NWPS responses use timeseries: {"timeseries":[{"data":[{"t":"..","v":..},...] }]}
+          if isinstance(src, dict) and isinstance(src.get("timeseries"), list):
+            ts = src["timeseries"][0]
+            data = ts.get("data") or []
+            out=[]
+            for row in data:
+              t = row.get("t") or row.get("validTime") or row.get("time")
+              ft = row.get("v") or row.get("primary") or row.get("value") or row.get("ft")
+              try:
+                ft = float(ft)
+              except:
+                continue
+              if t:
+                out.append({"t": t, "ft": ft})
+            json.dump(out, open("data/nwps_forecast.json","w"), indent=2)
+            print(f"Wrote {len(out)} points to data/nwps_forecast.json")
+            sys.exit(0)
+
+          raise SystemExit("Unrecognized NWPS JSON shape. Open /tmp/nwps.json to inspect.")
+          PY
+
+      - name: Commit & push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add data/nwps_forecast.json
+
+          if git diff --cached --quiet; then
+            echo "No changes."
+            exit 0
+          fi
+
+          git commit -m "Update NWPS forecast JSON"
+          git push
