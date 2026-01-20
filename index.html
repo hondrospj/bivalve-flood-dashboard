@@ -1,4 +1,4 @@
-x
+
 <!doctype html>
 <html lang="en">
 <head>
@@ -286,7 +286,31 @@ x
       <div class="foot" id="fcNote"></div>
       <div class="foot" id="txtNote"></div>
     </div>
+    
+<div style="height:14px"></div>
 
+       <div class="card">
+      <div class="hrow"><h2>Average Number of floods per month </h2></div>
+      <div class="hint" id="monthAvgMeta">Computing…</div>
+      <div style="height:10px"></div>
+      <div class="chartWrap"><canvas id="monthAvgChart"></canvas></div>
+      <div style="height:10px"></div>
+      <div class="table">
+        <table aria-label="Average floods by month of year">
+          <thead>
+            <tr>
+              <th>Month</th>
+              <th>Avg Total</th>
+              <th>Avg Minor</th>
+              <th>Avg Moderate</th>
+              <th>Avg Major</th>
+            </tr>
+          </thead>
+          <tbody id="monthAvgBody"></tbody>
+        </table>
+      </div>
+    </div> 
+    
     <div style="height:14px"></div>
 
     <div class="card">
@@ -318,28 +342,6 @@ x
     </div>
 
     <div style="height:14px"></div>
-
-    <div class="card">
-      <div class="hrow"><h2>Average Number of floods per month </h2></div>
-      <div class="hint" id="monthAvgMeta">Computing…</div>
-      <div style="height:10px"></div>
-      <div class="chartWrap"><canvas id="monthAvgChart"></canvas></div>
-      <div style="height:10px"></div>
-      <div class="table">
-        <table aria-label="Average floods by month of year">
-          <thead>
-            <tr>
-              <th>Month</th>
-              <th>Avg Total</th>
-              <th>Avg Minor</th>
-              <th>Avg Moderate</th>
-              <th>Avg Major</th>
-            </tr>
-          </thead>
-          <tbody id="monthAvgBody"></tbody>
-        </table>
-      </div>
-    </div>
 
     <script>
 
