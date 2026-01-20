@@ -841,7 +841,6 @@ function hydrateHistoricFromTXT(){
 function renderHist(rowsNavd){
   histBody.innerHTML="";
   const show=rowsNavd.slice(0, 100);
-heal;
   for(const r of show){
     const tag=stageTagByNavd(r.ft);
     const disp = toDisplayFtFromNavd(r.ft);
@@ -1097,13 +1096,48 @@ async function boot(){
 }
 
 /* Controls */
-$("applyBtn").addEventListener("click", applyFilter);
+const applyBtn = $("applyBtn");
+if (applyBtn) applyBtn.addEventListener("click", applyFilter);
 
-$("resetBtn").addEventListener("click", ()=>{
+const resetBtn = $("resetBtn");
+if (resetBtn) resetBtn.addEventListener("click", ()=>{
   minElevEl.value = THRESH[DISPLAY_DATUM].minorLow.toFixed(2);
   sortModeEl.value="desc";
   applyFilter();
 });
+
+if (datumBtn) datumBtn.addEventListener("click", ()=>{
+  const oldDatum = DISPLAY_DATUM;
+  const v = parseFloat(minElevEl.value);
+
+  if(Number.isFinite(v)){
+    const navd = (oldDatum==="MLLW") ? mllwToNavd(v) : v;
+    DISPLAY_DATUM = (DISPLAY_DATUM==="MLLW") ? "NAVD88" : "MLLW";
+    const newDisplayVal = (DISPLAY_DATUM==="MLLW") ? navdToMllw(navd) : navd;
+    minElevEl.value = newDisplayVal.toFixed(2);
+  }else{
+    DISPLAY_DATUM = (DISPLAY_DATUM==="MLLW") ? "NAVD88" : "MLLW";
+    minElevEl.value = THRESH[DISPLAY_DATUM].minorLow.toFixed(2);
+  }
+
+  updateUnitsAndBadges();
+  renderTopTen();
+  applyFilter();
+  updateMonthAveragesFromTXT();
+  renderAnnual();
+
+  if(STATE.lastNavd){
+    curFtEl.textContent = toDisplayFtFromNavd(STATE.lastNavd.ft).toFixed(2);
+    setStage(STATE.lastNavd.ft);
+  }
+  if(STATE.todayNavd && STATE.todayNavd.length){
+    const dmx=maxPoint(STATE.todayNavd), dmn=minPoint(STATE.todayNavd);
+    dayMaxFtEl.textContent = toDisplayFtFromNavd(dmx.ft).toFixed(2);
+    dayMinFtEl.textContent = toDisplayFtFromNavd(dmn.ft).toFixed(2);
+  }
+  updateTsChartFromState();
+});
+
 
 datumBtn.addEventListener("click", ()=>{
   const oldDatum = DISPLAY_DATUM;
