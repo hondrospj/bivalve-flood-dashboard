@@ -351,10 +351,9 @@ const TZ="Etc/GMT+5";
 /* Datum toggle */
 let DISPLAY_DATUM = "MLLW"; // "MLLW" or "NAVD88"
 
-/* NAVD88 = MLLW + OFFSET_NAVD_FROM_MLLW_FT */
-const OFFSET_NAVD_FROM_MLLW_FT = -3.41;
-function mllwToNavd(ft){ return ft + OFFSET_NAVD_FROM_MLLW_FT; }
-function navdToMllw(ft){ return ft - OFFSET_NAVD_FROM_MLLW_FT; }
+const NAVD_MINUS_MLLW_FT = -3.41;           // NAVD = MLLW - 3.41
+function mllwToNavd(ft){ return ft + NAVD_MINUS_MLLW_FT; }  // mllw - 3.41
+function navdToMllw(ft){ return ft - NAVD_MINUS_MLLW_FT; }  // navd + 3.41
 
 /* USGS observed (15-min IV). */
 const USGS_SITE="01412150";
