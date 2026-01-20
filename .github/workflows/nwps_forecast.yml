@@ -1,0 +1,49 @@
+name: Update NWPS forecast
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"   # every 30 minutes
+  workflow_dispatch: {}
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Fetch NWPS stageflow
+        run: |
+          mkdir -p data
+          curl -sS -H "accept: application/json" \
+            "https://api.water.noaa.gov/nwps/v1/gauges/bvvn4/stageflow" \
+            -o /tmp/nwps.json
+
+      - name: Extract 72h forecast to lightweight JSON
+        run: |
+          node - <<'NODE'
+          const fs = require("fs");
+          const j = JSON.parse(fs.readFileSync("/tmp/nwps.json","utf8"));
+
+          const raw = (j && j.forecast && Array.isArray(j.forecast.data)) ? j.forecast.data : [];
+          const now = Date.now();
+          const end = now + 72*3600*1000;
+
+          const out = raw
+            .map(p => ({ t: p.validTime, ft: Number(p.primary) }))
+            .filter(p => p.t && Number.isFinite(p.ft))
+            .filter(p => {
+              const tt = new Date(p.t).getTime();
+              return Number.isFinite(tt) && tt >= now && tt <= end;
+            });
+
+          fs.writeFileSync("data/nwps_forecast.json", JSON.stringify(out));
+          console.log("Wrote", out.length, "points to data/nwps_forecast.json");
+          NODE
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/nwps_forecast.json
+          git diff --cached --quiet || (git commit -m "Update NWPS forecast" && git push)
