@@ -254,7 +254,6 @@
 
         <div class="chartWrap"><canvas id="annualChart"></canvas></div>
         <div class="foot" id="annualNote">
-          Past years are from TXT daily High/Low-High; the current year updates from live USGS 15-minute data.
         </div>
       </div>
 
@@ -501,7 +500,7 @@ function updateUnitsAndBadges(){
 /* Simple helpers */
 function maxPoint(arr){ return arr.reduce((a,b)=>b.ft>a.ft?b:a, arr[0]); }
 function minPoint(arr){ return arr.reduce((a,b)=>b.ft<a.ft?b:a, arr[0]); }
-function setTXTStatus(msg){ if(txtNote) txtNote.textContent = msg; }
+function setTXTStatus(msg){ if(txtNote) txtNote.textContent = ""; }
 
 /* Top ten renderer (MLLW list; converts for display + classification) */
 function renderTopTen(){
@@ -1193,9 +1192,7 @@ function hydrateHistoricFromTXT(){
   HIGH_TIDES_NAVD = (DAILY_EVENTS_NAVD||[]).map(e=>({t:e.t, ft:e.ft, kind:e.kind, y:e.y, m:e.m, d:e.d}));
   HIGH_TIDES_NAVD.sort((a,b)=>new Date(b.t)-new Date(a.t));
   applyFilter();
-  histMeta.textContent = HIGH_TIDES_NAVD.length
-    ? `Loaded ${HIGH_TIDES_NAVD.length.toLocaleString()} daily events from TXT (High + Low-High).`
-    : "TXT loaded, but no daily events found.";
+  histMeta.textContent = "";
 }
 
 function renderHist(rowsNavd){
@@ -1345,7 +1342,7 @@ function renderMonthAveragesChart(monthStats){
 
 function updateMonthAveragesFromTXT(){
   if(!HIGH_TIDES_NAVD.length){
-    monthAvgMeta.textContent="No TXT daily events loaded yet.";
+   monthAvgMeta.textContent = "";
     const zeros = Array.from({length:12},(_,i)=>({month:i+1,avgTotal:0,avgMinor:0,avgModerate:0,avgMajor:0,years:0}));
     renderMonthAveragesTable(zeros);
     renderMonthAveragesChart(zeros);
