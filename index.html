@@ -380,7 +380,7 @@ const PEAK_MIN_SEP_MINUTES = 300;
 const ALERT_POINT={lat:39.2325, lon:-75.0380};
 
 /* TXT daily tides file */
-const DAILY_TIDES_TXT_FILE = "daily_tides_navd88.txt";
+const DAILY_TIDES_TXT_FILE = "bivalve_daily_stats.txt";
 const TXT_PATH_CANDIDATES = [
   `data/${DAILY_TIDES_TXT_FILE}`,
   `./data/${DAILY_TIDES_TXT_FILE}`,
@@ -1454,7 +1454,7 @@ async function boot(){
   if(results[1].status==="rejected"){
     console.error("TXT init failed:", results[1].reason);
     histMeta.textContent =
-      "TXT load failed. Ensure file is committed at data/daily_tides_navd88.txt (case-sensitive). See TXT status line.";
+      "TXT load failed. Ensure file is committed at data/bivalve_daily_stats.txt (case-sensitive). See TXT status line.";
     monthAvgMeta.textContent =
       "TXT load failed (monthly averages unavailable). See TXT status line.";
   }
