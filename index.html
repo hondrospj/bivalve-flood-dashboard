@@ -555,7 +555,7 @@ async function resolveDailyTidesTXTUrl(){
     const r = await tryFetchText(candidate);
     if(r.ok){
       DAILY_TIDES_TXT_URL = candidate;
-      setTXTStatus(`TXT OK: loaded ${candidate}`);
+      setTXTStatus(``);
       return {url:candidate, text:r.text};
     }else{
       failures.push(`${candidate} (${r.status}${r.err?`: ${r.err}`:""})`);
