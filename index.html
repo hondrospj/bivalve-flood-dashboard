@@ -1348,10 +1348,10 @@ function updateMonthAveragesFromTXT(){
     renderMonthAveragesChart(zeros);
     return;
   }
-  const stats = computeMonthlyAveragesFromEvents(HIGH_TIDES_NAVD);
-  monthAvgMeta.textContent = `Averages across ${stats[0]?.years ?? 0} years (computed from TXT daily High + Low-High events).`;
-  renderMonthAveragesTable(stats);
-  renderMonthAveragesChart(stats);
+ const stats = computeMonthlyAveragesFromEvents(HIGH_TIDES_NAVD);
+monthAvgMeta.textContent = "";
+renderMonthAveragesTable(stats);
+renderMonthAveragesChart(stats);
 }
 
 /* =========================
