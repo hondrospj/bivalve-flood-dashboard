@@ -1,7 +1,6 @@
 <!-- =========================
-PART A / B — FULL FILE (index.html)
-Paste ALL of Part A first.
-Then paste Part B immediately after it.
+PART A / 2 — index.html
+PASTE THIS FIRST. PART B CONTINUES AFTER THIS.
 ========================= -->
 <!doctype html>
 <html lang="en">
@@ -10,10 +9,7 @@ Then paste Part B immediately after it.
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Bivalve, NJ — Tidal Flooding Dashboard</title>
 
-  <!-- Chart.js + time adapter (prevents blank charts) -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/luxon@3.5.0/build/global/luxon.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1/dist/chartjs-adapter-luxon.umd.min.js"></script>
 
   <style>
     :root{
@@ -33,1135 +29,230 @@ Then paste Part B immediately after it.
     *{box-sizing:border-box}
     body{
       margin:0;
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
-      background: radial-gradient(1200px 700px at 30% -10%, rgba(45,212,191,.14), transparent 55%),
-                  radial-gradient(1200px 700px at 110% 10%, rgba(167,139,250,.14), transparent 55%),
-                  var(--bg);
+      font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+      background:
+        radial-gradient(1200px 650px at 15% -10%, rgba(34,211,238,.18), transparent 55%),
+        radial-gradient(1000px 600px at 92% 12%, rgba(167,139,250,.16), transparent 55%),
+        var(--bg);
       color:var(--text);
     }
-    a{color:inherit}
-    .wrap{max-width:1280px;margin:22px auto;padding:0 14px}
-    .topbar{
-      display:flex; align-items:center; justify-content:space-between;
-      margin:0 0 14px 0;
-      gap:12px;
-    }
-    .brand{
-      display:flex; flex-direction:column; gap:2px;
-    }
-    .brand h1{
-      margin:0; font-size:18px; letter-spacing:.6px; text-transform:uppercase; font-weight:900;
-    }
-    .brand .sub{color:var(--muted); font-size:13px; font-weight:650}
-    .btn{
-      border:1px solid rgba(255,255,255,.10);
-      background: rgba(255,255,255,.06);
-      color:var(--text);
-      padding:10px 12px;
-      border-radius:14px;
-      font-weight:850;
-      letter-spacing:.3px;
-      cursor:pointer;
-      display:inline-flex;
-      align-items:center;
-      gap:10px;
-      user-select:none;
-    }
-    .btn:hover{background:rgba(255,255,255,.09)}
-    .btn .pill{
-      font-size:12px; font-weight:900;
-      padding:4px 8px;
-      border-radius:999px;
-      background: rgba(0,0,0,.25);
-      border:1px solid rgba(255,255,255,.08);
-      color:rgba(233,240,255,.92);
-    }
-
-    .grid{
-      display:grid;
-      grid-template-columns: 1.2fr 1fr;
-      gap:14px;
-    }
-    @media (max-width: 980px){
-      .grid{grid-template-columns:1fr}
-    }
-
-    .card{
-      border-radius:22px;
-      background: var(--card);
-      box-shadow: var(--shadow);
-      border: 1px solid rgba(255,255,255,.08);
-      overflow:hidden;
-    }
-    .cardHead{
-      display:flex;
-      align-items:flex-end;
-      justify-content:space-between;
-      gap:12px;
-      padding:16px 16px 8px 16px;
-    }
-    .hTitle{
-      font-weight:900;
-      letter-spacing:.6px;
-      text-transform:uppercase;
-      font-size:16px;
-      line-height:1.1;
-      margin:0;
-    }
-    .hMeta{
-      font-weight:700;
-      color:var(--muted);
-      font-size:13px;
-      opacity:.95;
-      text-align:right;
-      white-space:nowrap;
-    }
-    .cardBody{padding:10px 14px 16px 14px}
-
-    .stats{
-      display:grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap:12px;
-    }
-    @media (max-width: 700px){
-      .stats{grid-template-columns:1fr}
-      .hMeta{white-space:normal;text-align:left}
-    }
-
-    .stat{
-      border-radius:18px;
-      background: linear-gradient(180deg, rgba(0,0,0,.12), rgba(0,0,0,.18));
-      border:1px solid rgba(255,255,255,.06);
-      padding:12px 12px 10px 12px;
-      min-height:78px;
-    }
-    .stat .k{color:rgba(233,240,255,.78); font-size:12px; font-weight:850; letter-spacing:.5px; text-transform:uppercase}
-    .stat .v{margin-top:6px; font-size:22px; font-weight:950; letter-spacing:.2px}
-    .stat .s{margin-top:4px; color:var(--muted); font-size:12px; font-weight:700}
-
-    .stageRow{
-      margin-top:12px;
-      display:grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap:10px;
-    }
-    .stage{
-      border-radius:18px;
-      border:1px solid rgba(255,255,255,.07);
-      background: rgba(0,0,0,.16);
-      padding:10px 10px 9px 10px;
-    }
-    .stage .lbl{font-weight:950; letter-spacing:.4px; text-transform:uppercase; font-size:12px}
-    .stage .rng{margin-top:6px; font-weight:900; font-size:14px; color:rgba(233,240,255,.92)}
-    .stage.minor .lbl{color:var(--minor)}
-    .stage.moderate .lbl{color:var(--moderate)}
-    .stage.major .lbl{color:var(--major)}
-
-    .chartBox{
-      position:relative;
-      height:420px;
-      background: linear-gradient(180deg, rgba(0,0,0,.10), rgba(0,0,0,.18));
-      border-radius:18px;
-      border:1px solid rgba(255,255,255,.06);
-      padding:10px;
-    }
-    .chartBox.small{height:330px}
-    canvas{width:100% !important;height:100% !important}
-
-    .table{
-      width:100%;
-      border-collapse:separate;
-      border-spacing:0 10px;
-    }
-    .row{
-      background: rgba(0,0,0,.18);
-      border:1px solid rgba(255,255,255,.06);
-      border-radius:16px;
-      overflow:hidden;
-    }
-    .table th{
-      text-align:left;
-      color:rgba(233,240,255,.72);
-      font-size:12px;
-      letter-spacing:.5px;
-      text-transform:uppercase;
-      padding:0 6px 6px 6px;
-      font-weight:950;
-    }
-    .table td{
-      padding:10px 10px;
-      font-weight:800;
-      font-size:13px;
-      color:rgba(233,240,255,.92);
-      border-top:1px solid rgba(255,255,255,.06);
-      border-bottom:1px solid rgba(255,255,255,.06);
-    }
-    .table tr td:first-child{
-      border-left:1px solid rgba(255,255,255,.06);
-      border-top-left-radius:16px;
-      border-bottom-left-radius:16px;
-    }
-    .table tr td:last-child{
-      border-right:1px solid rgba(255,255,255,.06);
-      border-top-right-radius:16px;
-      border-bottom-right-radius:16px;
-      text-align:right;
-      font-variant-numeric: tabular-nums;
-    }
-    .tag{
-      display:inline-flex; align-items:center; gap:8px;
-      font-weight:950;
-    }
-    .dot{
-      width:10px;height:10px;border-radius:50%;
-      background: rgba(255,255,255,.35);
-      box-shadow: 0 0 0 3px rgba(255,255,255,.08);
-    }
-    .dot.minor{background:var(--minor)}
-    .dot.moderate{background:var(--moderate)}
-    .dot.major{background:var(--major)}
-    .foot{
-      color:rgba(233,240,255,.65);
-      font-size:12px;
-      font-weight:700;
-      margin-top:10px;
-      line-height:1.35;
-    }
+    .wrap{max-width:1200px;margin:0 auto;padding:16px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px}
+    .chartWrapTall{height:320px}
+    .btn{background:#00000033;border:1px solid var(--line);color:#fff;padding:10px;border-radius:12px;font-weight:900;cursor:pointer}
   </style>
 </head>
 
 <body>
-  <div class="wrap">
-    <div class="topbar">
-      <div class="brand">
-        <h1>Bivalve, NJ — Tidal Flooding Dashboard</h1>
-        <div class="sub" id="lastUpdated">Last updated: —</div>
-      </div>
+<div class="wrap">
 
-      <button class="btn" id="datumBtn" type="button" aria-label="Toggle datum">
-        Datum
-        <span class="pill" id="datumPill">MLLW</span>
-      </button>
+  <button class="btn" id="datumBtn">Datum: MLLW</button>
+
+  <div class="card">
+    <div class="chartWrapTall">
+      <canvas id="tideChart"></canvas>
     </div>
-
-    <div class="grid">
-      <section class="card">
-        <div class="cardHead">
-          <h2 class="hTitle">Observations vs Predictions (NOAA)</h2>
-          <div class="hMeta">Observed: USGS 15-min • Predicted: NOAA CO-OPS</div>
-        </div>
-        <div class="cardBody">
-          <div class="chartBox">
-            <canvas id="tideChart"></canvas>
-          </div>
-
-          <div class="foot">
-            The chart shows the past 24 hours of observations and the next 72 hours of predictions.
-            Flood thresholds are drawn as horizontal lines.
-          </div>
-        </div>
-      </section>
-
-      <section class="card">
-        <div class="cardHead">
-          <h2 class="hTitle">Live Stats</h2>
-          <div class="hMeta" id="unitsMeta">ft MLLW</div>
-        </div>
-        <div class="cardBody">
-          <div class="stats">
-            <div class="stat">
-              <div class="k">Current water elevation</div>
-              <div class="v" id="statCurrent">—</div>
-              <div class="s" id="statCurrentTime">—</div>
-            </div>
-            <div class="stat">
-              <div class="k">Monthly maximum</div>
-              <div class="v" id="statMonthlyMax">—</div>
-              <div class="s" id="statMonthlyMaxTime">—</div>
-            </div>
-            <div class="stat">
-              <div class="k">Today (max / min)</div>
-              <div class="v" id="statDailyMaxMin">—</div>
-              <div class="s" id="statDailyMaxMinTime">—</div>
-            </div>
-          </div>
-
-          <div class="stageRow" id="stageRow">
-            <div class="stage minor">
-              <div class="lbl">Minor</div>
-              <div class="rng" id="stageMinor">—</div>
-            </div>
-            <div class="stage moderate">
-              <div class="lbl">Moderate</div>
-              <div class="rng" id="stageModerate">—</div>
-            </div>
-            <div class="stage major">
-              <div class="lbl">Major</div>
-              <div class="rng" id="stageMajor">—</div>
-            </div>
-          </div>
-        </div>
-      </section>
-    </div>
-
-    <div class="grid" style="margin-top:14px;">
-      <section class="card">
-        <div class="cardHead">
-          <h2 class="hTitle">Top Ten Highest Tides (Curated)</h2>
-          <div class="hMeta">Ranked by peak elevation</div>
-        </div>
-        <div class="cardBody">
-          <table class="table" id="topTenTable">
-            <thead>
-              <tr>
-                <th style="padding-left:10px;">Rank</th>
-                <th>Date</th>
-                <th>Type</th>
-                <th style="padding-right:10px;text-align:right;">Peak</th>
-              </tr>
-            </thead>
-            <tbody id="topTenBody"></tbody>
-          </table>
-        </div>
-      </section>
-
-      <section class="card">
-        <div class="cardHead">
-          <h2 class="hTitle">Annual Tidal Flooding (2000–2025)</h2>
-          <div class="hMeta">Minor / Moderate / Major counts</div>
-        </div>
-        <div class="cardBody">
-          <div class="chartBox small">
-            <canvas id="annualChart"></canvas>
-          </div>
-          <div class="foot">
-            By default this is computed from a local file (recommended) if present:
-            <b>data/high_tides_2000_2025.txt</b> (one peak per line). If not found, the chart will show “no data”.
-          </div>
-        </div>
-      </section>
-    </div>
-
-    <section class="card" style="margin-top:14px;">
-      <div class="cardHead">
-        <h2 class="hTitle">Average Floods by Month of Year</h2>
-        <div class="hMeta">Average per month across 2000–2025</div>
-      </div>
-      <div class="cardBody">
-        <div class="chartBox small">
-          <canvas id="monthlyAvgChart"></canvas>
-        </div>
-      </div>
-    </section>
   </div>
 
+</div>
+
 <script>
+"use strict";
+
+/* =============================
+CONFIG
+============================= */
+
 const TZ = "Etc/GMT+5";
-let DISPLAY_DATUM = "MLLW"; // default
+let DISPLAY_DATUM = "MLLW";
 
-const OFFSET_NAVD_FROM_MLLW_FT = +3.41;
-function mllwToNavd(ft){ return ft + OFFSET_NAVD_FROM_MLLW_FT; }
-function navdToMllw(ft){ return ft - OFFSET_NAVD_FROM_MLLW_FT; }
-
-const FLOOD_MLLW = { minor: 4.19, moderate: 5.19, major: 6.19 };
-function toDisplayDatumFromMllw(ft){ return (DISPLAY_DATUM==="NAVD88") ? mllwToNavd(ft) : ft; }
-function toDisplayDatumFromNavd(ft){ return (DISPLAY_DATUM==="MLLW") ? navdToMllw(ft) : ft; }
-function getFloodThresholdsDisplay(){
-  return {
-    minor: toDisplayDatumFromMllw(FLOOD_MLLW.minor),
-    moderate: toDisplayDatumFromMllw(FLOOD_MLLW.moderate),
-    major: toDisplayDatumFromMllw(FLOOD_MLLW.major)
-  };
-}
-
-const OBS_HOURS = 24;
-const PRED_HOURS = 72;
-
-// Observed: USGS IV 15-min
+const OFFSET_NAVD_FROM_MLLW_FT = 3.41;
 const USGS_SITE = "01412150";
-const USGS_PARAM = "72279"; // configured in your build as water level / tide elevation (NAVD88)
+const USGS_PARAM = "72279";
+const COOPS_STATION = "8536110";
 
-// Predicted: NOAA CO-OPS predictions (MLLW)
-const COOPS_STATION = "8536110"; // if you change to a different CO-OPS station, update this
+const THRESH_NAVD_MINOR = 4.19;
+const THRESH_NAVD_MODERATE = 5.19;
+const THRESH_NAVD_MAJOR = 6.19;
 
-// Local file for peaks (recommended)
-const PEAKS_TXT_PATH = "data/high_tides_2000_2025.txt";
+/* =============================
+HELPERS
+============================= */
 
-const $ = (id)=>document.getElementById(id);
-function pad2(n){ return String(n).padStart(2,"0"); }
-function isFiniteNum(x){ return Number.isFinite(x) && !Number.isNaN(x); }
-function fmtFt(x){
-  if(!isFiniteNum(x)) return "—";
-  return x.toFixed(2);
-}
-function fmtDateTime(ms){
-  return luxon.DateTime.fromMillis(ms, { zone: "utc" }).setZone(TZ).toFormat("ccc LLL dd, yyyy • h:mm a");
-}
-function fmtDate(ms){
-  return luxon.DateTime.fromMillis(ms, { zone: "utc" }).setZone(TZ).toFormat("LLL dd, yyyy");
-}
-function startOfTodayMs(){
-  return luxon.DateTime.now().setZone(TZ).startOf("day").toUTC().toMillis();
-}
-function startOfMonthMs(){
-  return luxon.DateTime.now().setZone(TZ).startOf("month").toUTC().toMillis();
-}
-async function fetchText(url){
-  const r = await fetch(url, { cache:"no-store" });
-  if(!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
-  return await r.text();
+function mllwToNavd(v){ return v + OFFSET_NAVD_FROM_MLLW_FT; }
+function navdToMllw(v){ return v - OFFSET_NAVD_FROM_MLLW_FT; }
+
+function displayFromNavd(v){
+  return DISPLAY_DATUM === "NAVD88" ? v : navdToMllw(v);
 }
 
-function classifyFlood(ftDisplay){
-  const th = getFloodThresholdsDisplay();
-  if(ftDisplay >= th.major) return "major";
-  if(ftDisplay >= th.moderate) return "moderate";
-  if(ftDisplay >= th.minor) return "minor";
-  return "none";
-}
-function floodLabel(t){
-  if(t==="minor") return "Minor";
-  if(t==="moderate") return "Moderate";
-  if(t==="major") return "Major";
-  return "—";
-}
-function dotClass(t){
-  if(t==="minor") return "minor";
-  if(t==="moderate") return "moderate";
-  if(t==="major") return "major";
-  return "";
+function thresholdForDisplay(kind){
+  const navd =
+    kind==="minor" ? THRESH_NAVD_MINOR :
+    kind==="moderate" ? THRESH_NAVD_MODERATE :
+    THRESH_NAVD_MAJOR;
+  return displayFromNavd(navd);
 }
 
-const TOP_TEN_MLLW = [
-  {date:"10-29-2012", ft:7.03},
-  {date:"11-25-1950", ft:6.60},
-  {date:"04-16-2011", ft:5.80},
-  {date:"08-04-2020", ft:5.67},
-  {date:"08-27-2011", ft:5.60},
-  {date:"01-23-2016", ft:5.58},
-  {date:"04-19-2022", ft:5.50},
-  {date:"08-21-2025", ft:5.49},
-  {date:"10-26-2019", ft:5.41},
-  {date:"03-09-2024", ft:5.39}
-];
-
-let tideChart=null, annualChart=null, monthlyAvgChart=null;
-
-const floodLinesPlugin = {
-  id: "floodLinesPlugin",
-  afterDatasetsDraw(chart, args, opts){
-    const y = chart.scales.y;
-    const area = chart.chartArea;
-    if(!y || !area) return;
-
-    const th = opts?.thresholds;
-    if(!th) return;
-
-    const ctx = chart.ctx;
-    const lines = [
-      { key:"minor", label:"Minor", color:getComputedStyle(document.documentElement).getPropertyValue("--minor").trim(), v: th.minor },
-      { key:"moderate", label:"Moderate", color:getComputedStyle(document.documentElement).getPropertyValue("--moderate").trim(), v: th.moderate },
-      { key:"major", label:"Major", color:getComputedStyle(document.documentElement).getPropertyValue("--major").trim(), v: th.major }
-    ];
-
-    ctx.save();
-    ctx.lineWidth = 1;
-    ctx.setLineDash([6,6]);
-    ctx.font = "900 12px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial";
-    ctx.textBaseline = "middle";
-
-    for(const L of lines){
-      if(!isFiniteNum(L.v)) continue;
-      const py = y.getPixelForValue(L.v);
-      if(py < area.top || py > area.bottom) continue;
-
-      ctx.strokeStyle = L.color;
-      ctx.beginPath();
-      ctx.moveTo(area.left, py);
-      ctx.lineTo(area.right, py);
-      ctx.stroke();
-
-      const txt = `${L.label} (${fmtFt(L.v)} ft ${DISPLAY_DATUM})`;
-      const x = area.left + 10;
-      const ytxt = Math.max(area.top + 12, Math.min(area.bottom - 12, py - 10));
-
-      ctx.setLineDash([]);
-      ctx.fillStyle = "rgba(0,0,0,.55)";
-      const w = ctx.measureText(txt).width;
-      ctx.fillRect(x-6, ytxt-9, w+12, 18);
-
-      ctx.fillStyle = L.color;
-      ctx.fillText(txt, x, ytxt);
-
-      ctx.setLineDash([6,6]);
-    }
-    ctx.restore();
-  }
-};
-Chart.register(floodLinesPlugin);
-
-function setDatumUI(){
-  $("datumPill").textContent = DISPLAY_DATUM;
-  $("unitsMeta").textContent = `ft ${DISPLAY_DATUM}`;
-
-  const th = getFloodThresholdsDisplay();
-  $("stageMinor").textContent = `${fmtFt(th.minor)} – ${fmtFt(th.moderate)} ft ${DISPLAY_DATUM}`;
-  $("stageModerate").textContent = `${fmtFt(th.moderate)} – ${fmtFt(th.major)} ft ${DISPLAY_DATUM}`;
-  $("stageMajor").textContent = `≥ ${fmtFt(th.major)} ft ${DISPLAY_DATUM}`;
+async function fetchJSON(url){
+  const r = await fetch(url,{cache:"no-store"});
+  if(!r.ok) throw new Error("HTTP "+r.status);
+  return r.json();
 }
 
-$("datumBtn").addEventListener("click", ()=>{
-  DISPLAY_DATUM = (DISPLAY_DATUM === "MLLW") ? "NAVD88" : "MLLW";
-  setDatumUI();
-  // Part B will re-render charts + stats on toggle
-  if(typeof window.__rerenderAll === "function") window.__rerenderAll();
-});
+/* =============================
+DATA LOADERS
+============================= */
 
-function renderTopTen(){
-  const body = $("topTenBody");
-  body.innerHTML = "";
-  const th = getFloodThresholdsDisplay();
-
-  TOP_TEN_MLLW.forEach((r, idx)=>{
-    const ftDisp = toDisplayDatumFromMllw(r.ft);
-    const type = classifyFlood(ftDisp);
-
-    const tr = document.createElement("tr");
-    const tdRank = document.createElement("td");
-    const tdDate = document.createElement("td");
-    const tdType = document.createElement("td");
-    const tdPeak = document.createElement("td");
-
-    tdRank.textContent = String(idx+1);
-    tdDate.textContent = r.date;
-    tdType.innerHTML = `<span class="tag"><span class="dot ${dotClass(type)}"></span>${floodLabel(type)}</span>`;
-    tdPeak.textContent = `${fmtFt(ftDisp)} ft`;
-
-    tr.appendChild(tdRank);
-    tr.appendChild(tdDate);
-    tr.appendChild(tdType);
-    tr.appendChild(tdPeak);
-
-    body.appendChild(tr);
-  });
-}
-renderTopTen();
-setDatumUI();
-
-/* ---- Part B starts immediately after this line ---- */
-/* =========================
-PART B / B — paste immediately after Part A
-(still inside the same <script> tag)
-========================= */
-
-/* -------------------------
-USGS observed (RDB) parsing
-------------------------- */
-function parseUsgsRdb(rdbText){
-  const lines = rdbText.split(/\r?\n/);
-  let header = null;
-  const out = [];
-  for(const line of lines){
-    if(!line || line.startsWith("#")) continue;
-    if(line.startsWith("agency_cd")){
-      header = line.split("\t");
-      continue;
-    }
-    if(!header) continue;
-    if(line.startsWith("5s")) continue;
-
-    const cols = line.split("\t");
-    if(cols.length < header.length) continue;
-
-    const dt_i = header.indexOf("datetime");
-    const v_i  = header.indexOf(USGS_PARAM);
-    if(dt_i === -1 || v_i === -1) continue;
-
-    const dt = cols[dt_i];
-    const v  = parseFloat(cols[v_i]);
-    if(!dt || !isFiniteNum(v)) continue;
-
-    // USGS datetime is in UTC (when requested with ISO start/end); parse to ms
-    const t = Date.parse(dt.replace(" ", "T") + "Z");
-    if(!isFiniteNum(t)) continue;
-
-    out.push({ t, v });
-  }
-  out.sort((a,b)=>a.t-b.t);
-  return out;
-}
-
-async function fetchUsgsObservedLast24h(){
-  const now = Date.now();
-  const start = now - (OBS_HOURS * 60 * 60 * 1000) - (2 * 60 * 60 * 1000); // buffer
+async function loadObserved24h(){
+  const end = new Date();
+  const start = new Date(end.getTime() - 24*3600*1000);
 
   const url =
-    "https://waterservices.usgs.gov/nwis/iv/?" +
-    `format=rdb&sites=${encodeURIComponent(USGS_SITE)}` +
-    `&parameterCd=${encodeURIComponent(USGS_PARAM)}` +
-    `&siteStatus=all` +
-    `&startDT=${encodeURIComponent(new Date(start).toISOString())}` +
-    `&endDT=${encodeURIComponent(new Date(now).toISOString())}`;
+    `https://waterservices.usgs.gov/nwis/iv/?format=json` +
+    `&sites=${USGS_SITE}` +
+    `&parameterCd=${USGS_PARAM}` +
+    `&startDT=${start.toISOString()}` +
+    `&endDT=${end.toISOString()}`;
 
-  const rdb = await fetchText(url);
-  const seriesNavd = parseUsgsRdb(rdb);
-
-  const cut = now - (OBS_HOURS * 60 * 60 * 1000);
-  const trimmed = seriesNavd.filter(p => p.t >= cut && p.t <= now);
-
-  // Convert to DISPLAY_DATUM
-  const disp = trimmed.map(p=>({ t:p.t, v: toDisplayDatumFromNavd(p.v) }));
-  return disp;
+  const json = await fetchJSON(url);
+  return json.value.timeSeries[0].values[0].value.map(v=>({
+    x:new Date(v.dateTime).getTime(),
+    y:displayFromNavd(+v.value)
+  }));
 }
 
-/* -------------------------
-NOAA predictions (6-min JSON) -> resample to 15-min
-------------------------- */
-function toNoaaUtcParam(ms){
-  const d = new Date(ms);
-  const Y = d.getUTCFullYear();
-  const M = pad2(d.getUTCMonth()+1);
-  const D = pad2(d.getUTCDate());
-  const h = pad2(d.getUTCHours());
-  const m = pad2(d.getUTCMinutes());
-  return `${Y}${M}${D} ${h}:${m}`;
-}
+async function loadPredicted72h(){
+  const now = new Date();
+  const end = new Date(now.getTime() + 72*3600*1000);
 
-async function fetchNoaaPredictions6min(station, startMs, endMs){
-  const begin = toNoaaUtcParam(startMs);
-  const end   = toNoaaUtcParam(endMs);
+  const pad = n=>String(n).padStart(2,"0");
+  const fmt = d=>`${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
 
   const url =
-    "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter" +
-    `?product=predictions&application=tidal-dashboard` +
-    `&begin_date=${encodeURIComponent(begin)}` +
-    `&end_date=${encodeURIComponent(end)}` +
-    `&datum=MLLW&station=${encodeURIComponent(station)}` +
+    `https://api.tidesandcurrents.noaa.gov/api/prod/datagetter` +
+    `?product=predictions&datum=MLLW&station=${COOPS_STATION}` +
+    `&begin_date=${fmt(now)}&end_date=${fmt(end)}` +
     `&time_zone=gmt&units=english&interval=6&format=json`;
 
-  const txt = await fetchText(url);
-  const j = JSON.parse(txt);
-  if(!j || !j.predictions) throw new Error("NOAA predictions returned no data");
-
-  const out = [];
-  for(const row of j.predictions){
-    const t = Date.parse(row.t.replace(" ", "T") + "Z"); // GMT -> UTC ms
-    const v = parseFloat(row.v); // ft MLLW
-    if(isFiniteNum(t) && isFiniteNum(v)) out.push({ t, v });
-  }
-  out.sort((a,b)=>a.t-b.t);
-  return out;
+  const json = await fetchJSON(url);
+  return json.predictions.map(p=>({
+    x:new Date(p.t+"Z").getTime(),
+    y:displayFromNavd(mllwToNavd(+p.v))
+  }));
 }
 
-// Linear interpolation resample to 15-min grid
-function resampleTo15Min(series, startMs, endMs){
-  if(!series || series.length < 2) return [];
-  const step = 15 * 60 * 1000;
-  const s = series.slice().sort((a,b)=>a.t-b.t);
-  const out = [];
+/* =============================
+CHART + NOAA FLOOD OVERLAY
+============================= */
 
-  let i = 0;
-  for(let t = startMs; t <= endMs; t += step){
-    while(i < s.length-2 && s[i+1].t < t) i++;
-    const a = s[i], b = s[i+1];
-    if(!a || !b) continue;
-    if(t < a.t || t > b.t) continue;
+let tideChart = null;
 
-    const frac = (t - a.t) / (b.t - a.t);
-    const v = a.v + frac * (b.v - a.v);
-    out.push({ t, v });
+const floodOverlayPlugin = {
+  id:"floodOverlay",
+  beforeDatasetsDraw(chart,args,opts){
+    const y = chart.scales.y;
+    const a = chart.chartArea;
+    const ctx = chart.ctx;
+
+    const draw=(v,color)=>{
+      const py = y.getPixelForValue(v);
+      ctx.save();
+      ctx.strokeStyle=color;
+      ctx.setLineDash([6,4]);
+      ctx.beginPath();
+      ctx.moveTo(a.left,py);
+      ctx.lineTo(a.right,py);
+      ctx.stroke();
+      ctx.restore();
+    };
+
+    draw(opts.minor,getComputedStyle(document.documentElement).getPropertyValue("--minor"));
+    draw(opts.moderate,getComputedStyle(document.documentElement).getPropertyValue("--moderate"));
+    draw(opts.major,getComputedStyle(document.documentElement).getPropertyValue("--major"));
   }
-  return out;
-}
-
-async function fetchNoaaPredictionsNext72h15m(){
-  const now = Date.now();
-  const start = now - (30 * 60 * 1000); // small buffer
-  const end   = now + (PRED_HOURS * 60 * 60 * 1000) + (30 * 60 * 1000);
-
-  const raw6 = await fetchNoaaPredictions6min(COOPS_STATION, start, end);
-
-  // 15-min grid aligned to UTC 15-min boundaries
-  const step = 15 * 60 * 1000;
-  const gridStart = Math.floor(now / step) * step;
-  const gridEnd = Math.floor((now + PRED_HOURS*60*60*1000) / step) * step;
-
-  const res15_mllw = resampleTo15Min(raw6, gridStart, gridEnd);
-
-  // Convert to DISPLAY_DATUM
-  const disp = res15_mllw.map(p=>({ t:p.t, v: toDisplayDatumFromMllw(p.v) }));
-  return disp;
-}
-
-/* -------------------------
-Stats: current, monthly max, today max/min
-(based on observed series)
-------------------------- */
-function computeStatsFromObserved(observedDisp){
-  if(!observedDisp || observedDisp.length === 0) return null;
-
-  const now = Date.now();
-  const cur = observedDisp[observedDisp.length - 1];
-
-  const monthStart = startOfMonthMs();
-  const todayStart = startOfTodayMs();
-
-  let monthMax = null;
-  let dayMax = null;
-  let dayMin = null;
-
-  for(const p of observedDisp){
-    if(p.t >= monthStart){
-      if(monthMax == null || p.v > monthMax.v) monthMax = p;
-    }
-    if(p.t >= todayStart){
-      if(dayMax == null || p.v > dayMax.v) dayMax = p;
-      if(dayMin == null || p.v < dayMin.v) dayMin = p;
-    }
-  }
-
-  return { now, cur, monthMax, dayMax, dayMin };
-}
-
-function renderStats(stats){
-  if(!stats){
-    $("statCurrent").textContent = "—";
-    $("statCurrentTime").textContent = "—";
-    $("statMonthlyMax").textContent = "—";
-    $("statMonthlyMaxTime").textContent = "—";
-    $("statDailyMaxMin").textContent = "—";
-    $("statDailyMaxMinTime").textContent = "—";
-    return;
-  }
-
-  $("statCurrent").textContent = `${fmtFt(stats.cur.v)} ft`;
-  $("statCurrentTime").textContent = fmtDateTime(stats.cur.t);
-
-  if(stats.monthMax){
-    $("statMonthlyMax").textContent = `${fmtFt(stats.monthMax.v)} ft`;
-    $("statMonthlyMaxTime").textContent = fmtDateTime(stats.monthMax.t);
-  }else{
-    $("statMonthlyMax").textContent = "—";
-    $("statMonthlyMaxTime").textContent = "—";
-  }
-
-  if(stats.dayMax && stats.dayMin){
-    $("statDailyMaxMin").textContent = `${fmtFt(stats.dayMax.v)} / ${fmtFt(stats.dayMin.v)} ft`;
-    $("statDailyMaxMinTime").textContent = `Max: ${fmtDateTime(stats.dayMax.t)} • Min: ${fmtDateTime(stats.dayMin.t)}`;
-  }else{
-    $("statDailyMaxMin").textContent = "—";
-    $("statDailyMaxMinTime").textContent = "—";
-  }
-}
-
-/* -------------------------
-Tide chart (24h obs vs 72h preds)
-- Title already fixed in HTML
-- Removed "(resampled..., unified axis)" in header
-- Flood thresholds drawn by plugin
-------------------------- */
-function buildTideChart(observedDisp, predictedDisp){
-  const th = getFloodThresholdsDisplay();
-
-  const all = [];
-  for(const p of observedDisp) all.push(p.v);
-  for(const p of predictedDisp) all.push(p.v);
-  all.push(th.minor, th.moderate, th.major);
-
-  let yMin = Math.min(...all.filter(isFiniteNum));
-  let yMax = Math.max(...all.filter(isFiniteNum));
-  if(!isFiniteNum(yMin) || !isFiniteNum(yMax)){ yMin=-1; yMax=8; }
-  const pad = Math.max(0.5, (yMax-yMin)*0.08);
-  yMin -= pad; yMax += pad;
-
-  const ctx = $("tideChart");
-  if(!ctx) return;
-  if(tideChart) tideChart.destroy();
-
-  tideChart = new Chart(ctx, {
-    type: "line",
-    data: {
-      datasets: [
-        {
-          label: "Observed (USGS)",
-          data: observedDisp.map(p=>({ x:p.t, y:p.v })),
-          borderColor: getComputedStyle(document.documentElement).getPropertyValue("--ok").trim() || "#2dd4bf",
-          borderWidth: 3,
-          tension: 0.28,
-          pointRadius: 0,
-          spanGaps: true
-        },
-        {
-          label: "Predicted (NOAA)",
-          data: predictedDisp.map(p=>({ x:p.t, y:p.v })),
-          borderColor: "rgba(45,212,191,.9)",
-          borderWidth: 2.5,
-          borderDash: [6,6],
-          tension: 0.28,
-          pointRadius: 0,
-          spanGaps: true
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { mode:"index", intersect:false },
-      plugins: {
-        legend: {
-          labels: {
-            color: getComputedStyle(document.documentElement).getPropertyValue("--text").trim() || "#eaf0ff",
-            boxWidth: 32,
-            boxHeight: 12,
-            padding: 16,
-            font: { size: 14, weight: "900" }
-          }
-        },
-        tooltip: {
-          callbacks: {
-            title(items){
-              const x = items?.[0]?.parsed?.x;
-              return fmtDateTime(Number(x));
-            },
-            label(item){
-              return `${item.dataset.label}: ${fmtFt(item.parsed.y)} ft ${DISPLAY_DATUM}`;
-            }
-          }
-        },
-        floodLinesPlugin: { thresholds: th }
-      },
-      scales: {
-        x: {
-          type: "time",
-          adapters: { date: { zone: "utc" } }, // luxon adapter
-          time: { unit: "day" },
-          grid: { color:"rgba(255,255,255,.06)" },
-          ticks: { color:"rgba(233,240,255,.72)", maxRotation:0, autoSkip:true }
-        },
-        y: {
-          title: {
-            display:true,
-            text:`ft ${DISPLAY_DATUM}`,
-            color:"rgba(233,240,255,.78)",
-            font:{ size:13, weight:"900" }
-          },
-          min: yMin,
-          max: yMax,
-          grid: { color:"rgba(255,255,255,.06)" },
-          ticks: { color:"rgba(233,240,255,.75)", callback:(v)=>Number(v).toFixed(0) }
-        }
-      }
-    }
-  });
-}
-
-/* -------------------------
-Peaks file parsing
-Expected format per line (flexible):
-YYYY-MM-DD HH:MM, <ft>
-or
-MM/DD/YYYY, <ft>
-We just extract: date/time + first number on the line.
-Counts floods by thresholds (DISPLAY DATUM aware).
-------------------------- */
-function tryParsePeakLine(line){
-  const s = line.trim();
-  if(!s) return null;
-
-  // grab the first float in the line as elevation (assumed MLLW)
-  const m = s.match(/(-?\d+(\.\d+)?)/);
-  if(!m) return null;
-  const ft = parseFloat(m[1]);
-  if(!isFiniteNum(ft)) return null;
-
-  // parse a date/time best-effort
-  // prefer ISO yyyy-mm-dd
-  let t = NaN;
-
-  const iso = s.match(/(\d{4})-(\d{2})-(\d{2})([ T](\d{2}):(\d{2}))?/);
-  if(iso){
-    const Y=+iso[1], Mo=+iso[2], D=+iso[3];
-    const hh=iso[5]?+iso[5]:0, mm=iso[6]?+iso[6]:0;
-    t = luxon.DateTime.fromObject({year:Y,month:Mo,day:D,hour:hh,minute:mm},{zone:TZ}).toUTC().toMillis();
-  } else {
-    const us = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-    if(us){
-      const Mo=+us[1], D=+us[2], Y=+us[3];
-      t = luxon.DateTime.fromObject({year:Y,month:Mo,day:D},{zone:TZ}).toUTC().toMillis();
-    } else {
-      const mdY = s.match(/(\d{2})-(\d{2})-(\d{4})/);
-      if(mdY){
-        const Mo=+mdY[1], D=+mdY[2], Y=+mdY[3];
-        t = luxon.DateTime.fromObject({year:Y,month:Mo,day:D},{zone:TZ}).toUTC().toMillis();
-      }
-    }
-  }
-  if(!isFiniteNum(t)) return null;
-
-  return { t, ft_mllw: ft };
-}
-
-async function loadPeaksFromTxt(){
-  try{
-    const txt = await fetchText(PEAKS_TXT_PATH);
-    const lines = txt.split(/\r?\n/);
-    const peaks = [];
-    for(const line of lines){
-      const p = tryParsePeakLine(line);
-      if(p) peaks.push(p);
-    }
-    peaks.sort((a,b)=>a.t-b.t);
-    return peaks;
-  }catch(e){
-    console.warn("Peaks file not found or failed to load:", e);
-    return null;
-  }
-}
-
-/* Flood counting:
-- We count a "flood" when a peak is >= threshold.
-- Because peaks are already high tides, this works well.
-*/
-function countFloodsByYear(peaks){
-  const years = new Map(); // year -> {minor, moderate, major}
-  const th = getFloodThresholdsDisplay();
-
-  for(const p of peaks){
-    const dt = luxon.DateTime.fromMillis(p.t, {zone:"utc"}).setZone(TZ);
-    const y = dt.year;
-
-    const ftDisp = toDisplayDatumFromMllw(p.ft_mllw);
-    const type = classifyFlood(ftDisp);
-    if(type === "none") continue;
-
-    if(!years.has(y)) years.set(y, { minor:0, moderate:0, major:0 });
-    const obj = years.get(y);
-
-    // IMPORTANT: count only the highest category reached by the peak
-    if(type === "major") obj.major += 1;
-    else if(type === "moderate") obj.moderate += 1;
-    else if(type === "minor") obj.minor += 1;
-  }
-
-  // Build arrays for 2000–2025
-  const labels = [];
-  const minor = [];
-  const moderate = [];
-  const major = [];
-
-  for(let y=2000; y<=2025; y++){
-    labels.push(String(y));
-    const v = years.get(y) || { minor:0, moderate:0, major:0 };
-    minor.push(v.minor);
-    moderate.push(v.moderate);
-    major.push(v.major);
-  }
-
-  return { labels, minor, moderate, major };
-}
-
-function avgFloodsByMonth(peaks){
-  // returns labels Jan..Dec and avg counts across 2000-2025
-  const th = getFloodThresholdsDisplay();
-
-  // month -> year -> {minor,moderate,major}
-  const by = Array.from({length:12}, ()=>new Map());
-
-  for(const p of peaks){
-    const dt = luxon.DateTime.fromMillis(p.t, {zone:"utc"}).setZone(TZ);
-    const y = dt.year;
-    if(y < 2000 || y > 2025) continue;
-
-    const m = dt.month - 1; // 0..11
-    const ftDisp = toDisplayDatumFromMllw(p.ft_mllw);
-    const type = classifyFlood(ftDisp);
-    if(type === "none") continue;
-
-    if(!by[m].has(y)) by[m].set(y, { minor:0, moderate:0, major:0 });
-    const obj = by[m].get(y);
-
-    if(type === "major") obj.major += 1;
-    else if(type === "moderate") obj.moderate += 1;
-    else if(type === "minor") obj.minor += 1;
-  }
-
-  const labels = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  const minor = [], moderate = [], major = [];
-
-  const yearsSpan = 26; // 2000..2025 inclusive
-  for(let m=0; m<12; m++){
-    let sMin=0, sMod=0, sMaj=0;
-    for(let y=2000; y<=2025; y++){
-      const v = by[m].get(y) || { minor:0, moderate:0, major:0 };
-      sMin += v.minor; sMod += v.moderate; sMaj += v.major;
-    }
-    minor.push(sMin / yearsSpan);
-    moderate.push(sMod / yearsSpan);
-    major.push(sMaj / yearsSpan);
-  }
-  return { labels, minor, moderate, major };
-}
-
-/* -------------------------
-Annual floods chart
-------------------------- */
-function buildAnnualChart(data){
-  const ctx = $("annualChart");
-  if(!ctx) return;
-  if(annualChart) annualChart.destroy();
-
-  annualChart = new Chart(ctx, {
-    type: "bar",
-    data: {
-      labels: data.labels,
-      datasets: [
-        { label:"Minor", data:data.minor, backgroundColor:getComputedStyle(document.documentElement).getPropertyValue("--minor").trim() || "#fbbf24", stack:"s" },
-        { label:"Moderate", data:data.moderate, backgroundColor:getComputedStyle(document.documentElement).getPropertyValue("--moderate").trim() || "#fb7185", stack:"s" },
-        { label:"Major", data:data.major, backgroundColor:getComputedStyle(document.documentElement).getPropertyValue("--major").trim() || "#a78bfa", stack:"s" }
-      ]
-    },
-    options: {
-      responsive:true,
-      maintainAspectRatio:false,
-      plugins:{
-        legend:{
-          labels:{
-            color:getComputedStyle(document.documentElement).getPropertyValue("--text").trim() || "#eaf0ff",
-            font:{ size:13, weight:"900" }
-          }
-        },
-        tooltip:{
-          callbacks:{
-            label(item){ return `${item.dataset.label}: ${item.parsed.y}`; }
-          }
-        }
-      },
-      scales:{
-        x:{
-          stacked:true,
-          grid:{ color:"rgba(255,255,255,.06)" },
-          ticks:{ color:"rgba(233,240,255,.72)", maxRotation:0, autoSkip:true }
-        },
-        y:{
-          stacked:true,
-          beginAtZero:true,
-          grid:{ color:"rgba(255,255,255,.06)" },
-          ticks:{ color:"rgba(233,240,255,.72)" }
-        }
-      }
-    }
-  });
-}
-
-/* -------------------------
-Monthly averages chart
-------------------------- */
-function buildMonthlyAvgChart(data){
-  const ctx = $("monthlyAvgChart");
-  if(!ctx) return;
-  if(monthlyAvgChart) monthlyAvgChart.destroy();
-
-  monthlyAvgChart = new Chart(ctx, {
-    type: "bar",
-    data: {
-      labels: data.labels,
-      datasets: [
-        { label:"Minor", data:data.minor, backgroundColor:getComputedStyle(document.documentElement).getPropertyValue("--minor").trim() || "#fbbf24", stack:"s" },
-        { label:"Moderate", data:data.moderate, backgroundColor:getComputedStyle(document.documentElement).getPropertyValue("--moderate").trim() || "#fb7185", stack:"s" },
-        { label:"Major", data:data.major, backgroundColor:getComputedStyle(document.documentElement).getPropertyValue("--major").trim() || "#a78bfa", stack:"s" }
-      ]
-    },
-    options: {
-      responsive:true,
-      maintainAspectRatio:false,
-      plugins:{
-        legend:{
-          labels:{
-            color:getComputedStyle(document.documentElement).getPropertyValue("--text").trim() || "#eaf0ff",
-            font:{ size:13, weight:"900" }
-          }
-        },
-        tooltip:{
-          callbacks:{
-            label(item){ return `${item.dataset.label}: ${item.parsed.y.toFixed(2)}`; }
-          }
-        }
-      },
-      scales:{
-        x:{
-          stacked:true,
-          grid:{ color:"rgba(255,255,255,.06)" },
-          ticks:{ color:"rgba(233,240,255,.72)", maxRotation:0 }
-        },
-        y:{
-          stacked:true,
-          beginAtZero:true,
-          grid:{ color:"rgba(255,255,255,.06)" },
-          ticks:{ color:"rgba(233,240,255,.72)" }
-        }
-      }
-    }
-  });
-}
-
-/* -------------------------
-Rerender / Boot
-------------------------- */
-async function boot(){
-  // update timestamp
-  $("lastUpdated").textContent = `Last updated: ${fmtDateTime(Date.now())}`;
-
-  // 1) Live observed + predicted for tide chart + stats
-  const [obsDisp, predDisp] = await Promise.all([
-    fetchUsgsObservedLast24h(),
-    fetchNoaaPredictionsNext72h15m()
-  ]);
-
-  buildTideChart(obsDisp, predDisp);
-
-  const stats = computeStatsFromObserved(obsDisp);
-  renderStats(stats);
-
-  // 2) Peaks file for annual + monthly charts
-  const peaks = await loadPeaksFromTxt();
-  if(peaks && peaks.length){
-    const annual = countFloodsByYear(peaks);
-    buildAnnualChart(annual);
-
-    const monthly = avgFloodsByMonth(peaks);
-    buildMonthlyAvgChart(monthly);
-  } else {
-    // create empty charts with note
-    const emptyAnnual = { labels: Array.from({length:26}, (_,i)=>String(2000+i)), minor:Array(26).fill(0), moderate:Array(26).fill(0), major:Array(26).fill(0) };
-    buildAnnualChart(emptyAnnual);
-    const emptyMonthly = { labels:["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"], minor:Array(12).fill(0), moderate:Array(12).fill(0), major:Array(12).fill(0) };
-    buildMonthlyAvgChart(emptyMonthly);
-  }
-}
-
-// expose rerender for datum toggle
-window.__rerenderAll = async function(){
-  renderTopTen();
-  setDatumUI();
-  try{ await boot(); }catch(e){ console.error(e); }
 };
 
-(async ()=>{
-  try{
-    await boot();
-  }catch(err){
-    console.error(err);
-    const boxes = document.querySelectorAll(".chartBox");
-    boxes.forEach(b=>{
-      b.innerHTML = `<div style="padding:16px;color:rgba(233,240,255,.85);font-weight:900">
-        Data failed to load. Open DevTools Console for details.
-      </div>`;
-    });
-  }
-})();
+function ensureChart(){
+  if(tideChart) return tideChart;
 
-// auto-refresh every 5 minutes
-setInterval(()=>window.__rerenderAll(), 5*60*1000);
+  tideChart = new Chart(
+    document.getElementById("tideChart"),
+    {
+      type:"line",
+      data:{datasets:[
+        {label:"Observed",data:[],borderColor:"#2dd4bf",pointRadius:0},
+        {label:"Predicted",data:[],borderColor:"#94a3b8",borderDash:[5,4],pointRadius:0}
+      ]},
+      options:{
+        animation:false,
+        parsing:false,
+        scales:{x:{type:"time"},y:{}},
+        plugins:{
+          legend:{display:false},
+          floodOverlay:{
+            minor:thresholdForDisplay("minor"),
+            moderate:thresholdForDisplay("moderate"),
+            major:thresholdForDisplay("major")
+          }
+        }
+      },
+      plugins:[floodOverlayPlugin]
+    }
+  );
+
+  return tideChart;
+}
+/* =============================
+RENDER + UPDATE
+============================= */
+
+async function updateAll(){
+  try{
+    const [obs, pred] = await Promise.all([
+      loadObserved24h(),
+      loadPredicted72h()
+    ]);
+
+    const chart = ensureChart();
+
+    chart.data.datasets[0].data = obs;
+    chart.data.datasets[1].data = pred;
+
+    chart.options.plugins.floodOverlay.minor = thresholdForDisplay("minor");
+    chart.options.plugins.floodOverlay.moderate = thresholdForDisplay("moderate");
+    chart.options.plugins.floodOverlay.major = thresholdForDisplay("major");
+
+    const ys = [...obs, ...pred].map(d=>d.y).filter(v=>isFinite(v));
+    if(ys.length){
+      chart.options.scales.y.min = Math.min(...ys) - 0.4;
+      chart.options.scales.y.max = Math.max(...ys) + 0.4;
+    }
+
+    chart.update("none");
+  } catch(err){
+    console.error(err);
+  }
+}
+
+/* =============================
+DATUM TOGGLE
+============================= */
+
+document.getElementById("datumBtn").addEventListener("click",()=>{
+  DISPLAY_DATUM = DISPLAY_DATUM==="MLLW" ? "NAVD88" : "MLLW";
+  document.getElementById("datumBtn").textContent =
+    "Datum: " + (DISPLAY_DATUM==="NAVD88" ? "NAVD88" : "MLLW");
+  updateAll();
+});
+
+/* =============================
+BOOT
+============================= */
+
+ensureChart();
+updateAll();
+setInterval(updateAll, 5 * 60 * 1000);
 
 </script>
 </body>
