@@ -1,4 +1,8 @@
 
+<!-- =========================
+PART 1 / 2 — index.html (PASTE THIS FIRST)
+Then say "go" and I’ll give PART 2 / 2.
+========================= -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -356,23 +360,15 @@ const OFFSET_NAVD_FROM_MLLW_FT = -3.41;
 function mllwToNavd(ft){ return ft + OFFSET_NAVD_FROM_MLLW_FT; }
 function navdToMllw(ft){ return ft - OFFSET_NAVD_FROM_MLLW_FT; }
 
-/* =========================
-CRITICAL PARAMETER FIX (Water Level, not Discharge)
-- Your dashboard logic (flood thresholds + MLLW/NAVD88 toggle) assumes the live series is an ELEVATION referenced
-  to NAVD88 (or at least a stable vertical datum), NOT discharge (cfs) and NOT generic stage.
-- For Bivalve, the cleanest choice is USGS parameter 72279:
-  "Tidal elevation, NOS-averaged, NAVD88 (ft)" (your TXT columns already use 72279 daily stats).
-- So: request ONLY 72279 and only accept that series from the USGS JSON, so we never accidentally grab a non-water-level series.
-========================= */
-
 /* USGS observed (15-min IV). */
 const USGS_SITE="01412150";
+/* NOTE: These param codes MUST match your gauge output.
+   PRIMARY_PARAM 72279 is "Tidal elevation, NOS-averaged, NAVD88 (ft)" on many NJ tide sites.
+   FALLBACK_PARAM 00065 is gauge height. */
+const PRIMARY_PARAM="72279";
+const FALLBACK_PARAM="00065";
 
-/* Water level ONLY (tide elevation NAVD88). */
-const USGS_PARAM_PRIMARY = "72279";
-const USGS_PARAM_CSV = USGS_PARAM_PRIMARY;
-
-/* NOAA CO-OPS predictions */
+/* NOAA CO-OPS predictions (nearby station). */
 const COOPS_STATION="8535055";
 const COOPS_APP="cupajoe.live";
 const COOPS_DATUM="MLLW";
@@ -402,26 +398,25 @@ const TXT_PATH_CANDIDATES = [
 
 let DAILY_TIDES_TXT_URL = TXT_PATH_CANDIDATES[0];
 
-/* TXT columns (NAVD88 daily stats for parameter 72279) */
+/* TXT columns */
 const COL_DAILY_HIGH  = "239251_72279_00021";
 const COL_DAILY_LOWHI = "239252_72279_00022";
 
 /* Top ten list (MLLW) */
-const TOP_TEN_NAVD = [
-  {date:"10-29-2012", ft:10.44}, // 7.03 + 3.41
-  {date:"11-25-1950", ft:10.01}, // 6.60 + 3.41
-  {date:"04-16-2011", ft:9.21},  // 5.80 + 3.41
-  {date:"08-04-2020", ft:9.08},  // 5.67 + 3.41
-  {date:"08-27-2011", ft:9.01},  // 5.60 + 3.41
-  {date:"01-23-2016", ft:8.99},  // 5.58 + 3.41
-  {date:"04-19-2022", ft:8.91},  // 5.50 + 3.41
-  {date:"08-21-2025", ft:8.90},  // 5.49 + 3.41
-  {date:"10-26-2019", ft:8.82},  // 5.41 + 3.41
-  {date:"03-09-2024", ft:8.80}   // 5.39 + 3.41
+const TOP_TEN_MLLW=[
+  {date:"10-29-2012", ft:7.03},
+  {date:"11-25-1950", ft:6.60},
+  {date:"04-16-2011", ft:5.80},
+  {date:"08-04-2020", ft:5.67},
+  {date:"08-27-2011", ft:5.60},
+  {date:"01-23-2016", ft:5.58},
+  {date:"04-19-2022", ft:5.50},
+  {date:"08-21-2025", ft:5.49},
+  {date:"10-26-2019", ft:5.41},
+  {date:"03-09-2024", ft:5.39}
 ];
 
-
-/* DOM */
+/* DOM helpers */
 const $=id=>document.getElementById(id);
 
 const curFtEl=$("curFt"), curMetaEl=$("curMeta");
@@ -441,16 +436,6 @@ const minorBadge=$("minorBadge"), moderateBadge=$("moderateBadge"), majorBadge=$
 const datumBtn=$("datumBtn");
 
 const monthAvgMeta=$("monthAvgMeta"), monthAvgBody=$("monthAvgBody");
-
-/* If ANY JS error happens, show it in the UI so you’re not blind */
-window.addEventListener("error",(e)=>{
-  console.error("JS error:", e?.message || e);
-  stageTextEl.textContent="SCRIPT ERROR (open Console)";
-});
-window.addEventListener("unhandledrejection",(e)=>{
-  console.error("Unhandled promise:", e?.reason || e);
-  stageTextEl.textContent="SCRIPT ERROR (open Console)";
-});
 
 /* Formatters */
 const fmtFull = new Intl.DateTimeFormat("en-US",{ timeZone:TZ,year:"numeric",month:"short",day:"2-digit", hour:"2-digit",minute:"2-digit",hour12:true });
@@ -609,7 +594,8 @@ function parseUSGSDailyTidesTXT(text){
 function buildDailyEventsFromDailyTides(rows){
   const ev=[];
   for(const r of rows){
-    const t = new Date(Date.UTC(r.y, r.m-1, r.d, 17, 0, 0)).toISOString(); // noon EST as 17:00Z
+    // noon EST represented as 17:00Z
+    const t = new Date(Date.UTC(r.y, r.m-1, r.d, 17, 0, 0)).toISOString();
     if(r.highNavd!==null)  ev.push({t, ft:r.highNavd,  kind:"High",     y:r.y, m:r.m, d:r.d});
     if(r.lowhiNavd!==null) ev.push({t, ft:r.lowhiNavd, kind:"Low-High", y:r.y, m:r.m, d:r.d});
   }
@@ -625,11 +611,11 @@ async function loadDailyTidesFromTXT(){
 }
 
 /* USGS IV fetch */
-async function fetchIV({startISO=null,endISO=null,period=null}={}){
+async function fetchIV({startISO=null,endISO=null,parameterCd=PRIMARY_PARAM,period=null}={}){
   const url=new URL("https://waterservices.usgs.gov/nwis/iv/");
   url.searchParams.set("format","json");
   url.searchParams.set("sites",USGS_SITE);
-  url.searchParams.set("parameterCd",USGS_PARAM_CSV);
+  url.searchParams.set("parameterCd",parameterCd);
   url.searchParams.set("siteStatus","all");
   url.searchParams.set("agencyCd","USGS");
   if(period) url.searchParams.set("period",period);
@@ -640,37 +626,18 @@ async function fetchIV({startISO=null,endISO=null,period=null}={}){
   return res.json();
 }
 
-/* Extract ONLY the water-level (72279) series; never discharge, never arbitrary first-series. */
-function getTsParamCode(ts){
-  return ts?.variable?.variableCode?.[0]?.value || null;
-}
-function extractWaterLevelSeries_NAVD88(json){
-  const tss = json?.value?.timeSeries || [];
-  const candidates = tss.filter(ts => getTsParamCode(ts) === USGS_PARAM_PRIMARY);
-
-  if(!candidates.length){
-    const have = tss.map(getTsParamCode).filter(Boolean);
-    throw new Error(
-      `USGS returned no water-level series for parameter ${USGS_PARAM_PRIMARY}. ` +
-      (have.length ? `Returned codes: ${[...new Set(have)].join(", ")}` : "No codes returned.")
-    );
-  }
-
-  let bestPts = [];
-  for(const ts of candidates){
-    const vals = ts?.values?.[0]?.value || [];
-    const pts = vals
-      .map(v => ({ t: v.dateTime, ft: Number(v.value) }))
-      .filter(p => p.t && Number.isFinite(p.ft));
-    if(pts.length > bestPts.length) bestPts = pts;
-  }
-  return bestPts;
+function extractSeries(json){
+  const ts=json?.value?.timeSeries?.[0];
+  const vals=ts?.values?.[0]?.value||[];
+  return vals.map(v=>({t:v.dateTime, ft:+v.value})).filter(p=>Number.isFinite(p.ft) && p.t);
 }
 
-/* Use the water-level extractor */
-async function fetchObservedSeries({startISO=null,endISO=null,period=null}={}){
-  const j = await fetchIV({startISO,endISO,period});
-  return extractWaterLevelSeries_NAVD88(j);
+async function fetchWithFallback(opts){
+  let j=await fetchIV({...opts,parameterCd:PRIMARY_PARAM});
+  let s=extractSeries(j);
+  if(s.length) return s;
+  j=await fetchIV({...opts,parameterCd:FALLBACK_PARAM});
+  return extractSeries(j);
 }
 
 /* NOAA helpers */
@@ -791,7 +758,14 @@ function sliceAfter(series, startISO){
   const s = new Date(startISO).getTime();
   return (series||[]).filter(p=>new Date(p.t).getTime()>=s);
 }
+      <!-- =========================
+PART 2 / 2 — index.html (PASTE IMMEDIATELY AFTER PART 1)
+This continues inside the SAME <script> tag and finishes the file.
+========================= -->
 
+/* ========= SCRIPT (Part 2/2) ========= */
+
+/* Colors for line segments (display datum) */
 function colorForFtDisplay(ftDisplay){
   const T = THRESH[DISPLAY_DATUM];
   if(ftDisplay>=T.majorLow)    return "rgba(167,139,250,.95)";
@@ -800,7 +774,7 @@ function colorForFtDisplay(ftDisplay){
   return "rgba(45,212,191,.90)";
 }
 
-/* Peak counting uses NAVD thresholds */
+/* Peak counting (live current-year YTD from 15-min series; NAVD thresholds) */
 function countFloodPeaks_NAVD(series){
   if(!series || series.length<3) return {minor:0, moderate:0, major:0};
   const T = THRESH.NAVD88;
@@ -839,7 +813,7 @@ function countFloodPeaks_NAVD(series){
   return {minor, moderate, major};
 }
 
-/* Annual counts from TXT */
+/* Annual counts (TXT completed years, then we overwrite current year with live peaks) */
 function countAnnualFloodsFromTXT(eventsNavd){
   const T = THRESH.NAVD88;
   const byYear = new Map();
@@ -931,7 +905,7 @@ function renderAnnual(){
   annualChart.update();
 }
 
-/* Timeseries chart */
+/* Timeseries chart (24h obs + 72h pred) */
 function buildDailyTickCallbackSkipFirstDay(labels){
   const seenDays = new Set();
   let firstDay = null;
@@ -955,7 +929,7 @@ function ensureTsChart(){
       labels:[],
       datasets:[
         {
-          label:"Observed (USGS water level)",
+          label:"Observed (USGS)",
           data:[],
           borderWidth:2,
           pointRadius:0,
@@ -1058,7 +1032,7 @@ function updateTsChartFromState(){
   tsChart.update();
 }
 
-/* Historic filter from TXT */
+/* TXT-driven historic filter */
 function hydrateHistoricFromTXT(){
   HIGH_TIDES_NAVD = (DAILY_EVENTS_NAVD||[]).map(e=>({t:e.t, ft:e.ft, kind:e.kind, y:e.y, m:e.m, d:e.d}));
   HIGH_TIDES_NAVD.sort((a,b)=>new Date(b.t)-new Date(a.t));
@@ -1100,7 +1074,7 @@ function applyFilter(){
   renderHist(rows);
 }
 
-/* Monthly averages */
+/* Monthly averages (TXT events) */
 function monthNameFromIndex(i){
   const d = new Date(Date.UTC(2020, i-1, 15, 0, 0, 0));
   return fmtMonthName.format(d);
@@ -1233,8 +1207,8 @@ async function updateLiveAndAnnualCounts(){
   const startISO = startOfYearEST_ISO(curYear);
   const endISO = nowISO();
 
-  const ytd = await fetchObservedSeries({startISO, endISO});
-  if(!ytd.length) throw new Error("no live water-level data returned from USGS");
+  const ytd = await fetchWithFallback({startISO, endISO});
+  if(!ytd.length) throw new Error("no live data");
 
   STATE.ytdNavd = ytd;
   STATE.lastNavd = ytd[ytd.length-1];
@@ -1269,7 +1243,7 @@ async function updateTimeseries(){
   const end = new Date();
   const start = new Date(end.getTime() - 24*3600*1000);
 
-  const obs = await fetchObservedSeries({startISO:start.toISOString(), endISO:end.toISOString()});
+  const obs = await fetchWithFallback({startISO:start.toISOString(), endISO:end.toISOString()});
   STATE.obs24Navd = obs;
 
   const lastObsTime = obs.length ? obs[obs.length-1].t : null;
