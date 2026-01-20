@@ -700,24 +700,22 @@ NWPS total water level forecast (water.noaa.gov)
 NOTE: We treat NWPS "primary" as NAVD88 feet to match your thresholds + USGS series.
 ========================= */
 async function fetchNWPSForecast({ hours = 72 } = {}) {
-  const url = `https://api.water.noaa.gov/nwps/v1/gauges/${NWPS_GAUGE}/stageflow`;
-  const res = await fetch(url, { cache:"no-store" });
-  if (!res.ok) throw new Error("NWPS stageflow failed " + res.status);
-
-  const j = await res.json();
-  const raw = j?.forecast?.data || [];
+  const res = await fetch("data/nwps_forecast.json", { cache:"no-store" });
+  if(!res.ok) throw new Error("Local NWPS forecast missing: data/nwps_forecast.json");
+  const arr = await res.json();
 
   const now = Date.now();
-  const end = now + hours * 3600 * 1000;
+  const end = now + hours*3600*1000;
 
-  return raw
-    .map(p => ({ t: p.validTime, ft: Number(p.primary) }))
+  return (arr||[])
+    .map(p => ({ t: p.t, ft: Number(p.ft) }))
+    .filter(p => p.t && Number.isFinite(p.ft))
     .filter(p => {
-      if (!p.t || !Number.isFinite(p.ft)) return false;
       const tt = new Date(p.t).getTime();
-      return tt >= now && tt <= end;
+      return Number.isFinite(tt) && tt >= now && tt <= end;
     });
 }
+
 /* =========================
 PART 2 / 4 — SCRIPT CONTINUED
 (paste immediately after Part 1, still inside the same <script>)
