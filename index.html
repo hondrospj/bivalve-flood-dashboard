@@ -1,5 +1,3 @@
-
-
 <!-- =========================
 PART 1 / 2 — index.html (PASTE THIS FIRST)
 Then say "go" and I’ll give PART 2 / 2.
@@ -286,7 +284,7 @@ Then say "go" and I’ll give PART 2 / 2.
     <div class="card">
       <div class="hrow">
         <h2>24 hours: observations vs 72 hours predictions (NOAA)</h2>
-        <div class="kicker" style="text-transform:none">Observed: USGS 15-min · Predicted: NOAA CO-OPS</div>
+        <div class="kicker" style="text-transform:none">Observed: USGS 15-min · Predicted: NOAA CO-OPS (Bivalve)</div>
       </div>
       <div class="chartWrapTall"><canvas id="tsChart"></canvas></div>
       <div class="foot" id="fcNote"></div>
@@ -356,20 +354,19 @@ const TZ="Etc/GMT+5";
 /* Datum toggle */
 let DISPLAY_DATUM = "MLLW"; // "MLLW" or "NAVD88"
 
-/* NAVD88 = MLLW + OFFSET_NAVD_FROM_MLLW_FT */
+/* Relationship implied by your thresholds:
+   MLLW = NAVD88 + 3.41
+   NAVD88 = MLLW - 3.41 */
 const OFFSET_NAVD_FROM_MLLW_FT = -3.41;
-function mllwToNavd(ft){ return ft + OFFSET_NAVD_FROM_MLLW_FT; }
-function navdToMllw(ft){ return ft - OFFSET_NAVD_FROM_MLLW_FT; }
+function mllwToNavd(ft){ return ft + OFFSET_NAVD_FROM_MLLW_FT; }  // MLLW -> NAVD88
+function navdToMllw(ft){ return ft - OFFSET_NAVD_FROM_MLLW_FT; }  // NAVD88 -> MLLW
 
 /* USGS observed (15-min IV). */
 const USGS_SITE="01412150";
-/* NOTE: These param codes MUST match your gauge output.
-   PRIMARY_PARAM 72279 is "Tidal elevation, NOS-averaged, NAVD88 (ft)" on many NJ tide sites.
-   FALLBACK_PARAM 00065 is gauge height. */
+/* This site provides 72279 (Tidal elev, NOS-averaged, NAVD88, feet). */
 const PRIMARY_PARAM="72279";
-const FALLBACK_PARAM="00065";
 
-/* NOAA CO-OPS predictions (nearby station). */
+/* NOAA CO-OPS predictions (Bivalve station). */
 const COOPS_STATION="8535055";
 const COOPS_APP="cupajoe.live";
 const COOPS_DATUM="MLLW";
@@ -403,8 +400,8 @@ let DAILY_TIDES_TXT_URL = TXT_PATH_CANDIDATES[0];
 const COL_DAILY_HIGH  = "239251_72279_00021";
 const COL_DAILY_LOWHI = "239252_72279_00022";
 
-/* Top ten list (MLLW) */
-const TOP_TEN_MLLW=[
+/* Top ten list (stored as NAVD88 ft) */
+const TOP_TEN_NAVD=[
   {date:"10-29-2012", ft:7.03},
   {date:"11-25-1950", ft:6.60},
   {date:"04-16-2011", ft:5.80},
@@ -595,7 +592,6 @@ function parseUSGSDailyTidesTXT(text){
 function buildDailyEventsFromDailyTides(rows){
   const ev=[];
   for(const r of rows){
-    // noon EST represented as 17:00Z
     const t = new Date(Date.UTC(r.y, r.m-1, r.d, 17, 0, 0)).toISOString();
     if(r.highNavd!==null)  ev.push({t, ft:r.highNavd,  kind:"High",     y:r.y, m:r.m, d:r.d});
     if(r.lowhiNavd!==null) ev.push({t, ft:r.lowhiNavd, kind:"Low-High", y:r.y, m:r.m, d:r.d});
@@ -633,11 +629,8 @@ function extractSeries(json){
   return vals.map(v=>({t:v.dateTime, ft:+v.value})).filter(p=>Number.isFinite(p.ft) && p.t);
 }
 
-async function fetchWithFallback(opts){
-  let j=await fetchIV({...opts,parameterCd:PRIMARY_PARAM});
-  let s=extractSeries(j);
-  if(s.length) return s;
-  j=await fetchIV({...opts,parameterCd:FALLBACK_PARAM});
+async function fetchPrimaryIV(opts){
+  const j=await fetchIV({...opts,parameterCd:PRIMARY_PARAM});
   return extractSeries(j);
 }
 
@@ -708,10 +701,9 @@ async function updateAlerts(){
 /* Top ten */
 function renderTopTen(){
   topTenBody.innerHTML="";
-  TOP_TEN_MLLW.forEach((r,i)=>{
-    const navd = mllwToNavd(r.ft);
-    const tag = stageTagByNavd(navd);
-    const disp = toDisplayFtFromMllw(r.ft);
+  TOP_TEN_NAVD.forEach((r,i)=>{
+    const tag = stageTagByNavd(r.ft);
+    const disp = toDisplayFtFromNavd(r.ft);
     const tr=document.createElement("tr");
     tr.innerHTML=`
       <td><b>#${i+1}</b></td>
@@ -759,11 +751,6 @@ function sliceAfter(series, startISO){
   const s = new Date(startISO).getTime();
   return (series||[]).filter(p=>new Date(p.t).getTime()>=s);
 }
-      <!-- =========================
-PART 2 / 2 — index.html (PASTE IMMEDIATELY AFTER PART 1)
-This continues inside the SAME <script> tag and finishes the file.
-========================= -->
-
 /* ========= SCRIPT (Part 2/2) ========= */
 
 /* Colors for line segments (display datum) */
@@ -814,7 +801,7 @@ function countFloodPeaks_NAVD(series){
   return {minor, moderate, major};
 }
 
-/* Annual counts (TXT completed years, then we overwrite current year with live peaks) */
+/* Annual counts (TXT completed years, then overwrite current year with live peaks) */
 function countAnnualFloodsFromTXT(eventsNavd){
   const T = THRESH.NAVD88;
   const byYear = new Map();
@@ -1208,7 +1195,7 @@ async function updateLiveAndAnnualCounts(){
   const startISO = startOfYearEST_ISO(curYear);
   const endISO = nowISO();
 
-  const ytd = await fetchWithFallback({startISO, endISO});
+  const ytd = await fetchPrimaryIV({startISO, endISO});
   if(!ytd.length) throw new Error("no live data");
 
   STATE.ytdNavd = ytd;
@@ -1244,7 +1231,7 @@ async function updateTimeseries(){
   const end = new Date();
   const start = new Date(end.getTime() - 24*3600*1000);
 
-  const obs = await fetchWithFallback({startISO:start.toISOString(), endISO:end.toISOString()});
+  const obs = await fetchPrimaryIV({startISO:start.toISOString(), endISO:end.toISOString()});
   STATE.obs24Navd = obs;
 
   const lastObsTime = obs.length ? obs[obs.length-1].t : null;
