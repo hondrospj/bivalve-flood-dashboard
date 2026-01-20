@@ -1,4 +1,7 @@
-
+<!-- =========================
+PART 1 / 4 — FULL FIXED FILE (index.html)
+Paste Part 1 first, then Part 2, then Part 3, then Part 4.
+========================= -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -216,26 +219,26 @@
           </div>
         </div>
 
-       <div class="rangeBox">
-  <div class="rangeTitle">Daily range (today)</div>
-  <div class="rangeRow">
-    <div class="rangeCol">
-      <div class="rangeLab">Max</div>
-      <div class="rangeVal">
-        <span id="dayMaxFt">—</span>
-        <span class="unit" data-unit>ft MLLW</span>
-      </div>
-    </div>
-    <div class="rangeCol">
-      <div class="rangeLab">Min</div>
-      <div class="rangeVal">
-        <span id="dayMinFt">—</span>
-        <span class="unit" data-unit>ft MLLW</span>
-      </div>
-    </div>
-  </div>
-  <div class="rangeMeta" id="dayRangeMeta">—</div>
-</div>
+        <div class="rangeBox">
+          <div class="rangeTitle">Daily range (today)</div>
+          <div class="rangeRow">
+            <div class="rangeCol">
+              <div class="rangeLab">Max</div>
+              <div class="rangeVal">
+                <span id="dayMaxFt">—</span>
+                <span class="unit" data-unit>ft MLLW</span>
+              </div>
+            </div>
+            <div class="rangeCol">
+              <div class="rangeLab">Min</div>
+              <div class="rangeVal">
+                <span id="dayMinFt">—</span>
+                <span class="unit" data-unit>ft MLLW</span>
+              </div>
+            </div>
+          </div>
+          <div class="rangeMeta" id="dayRangeMeta">—</div>
+        </div>
 
         <div class="stages" aria-label="Flood stages">
           <div class="stage">
@@ -253,8 +256,7 @@
         </div>
 
         <div class="chartWrap"><canvas id="annualChart"></canvas></div>
-        <div class="foot" id="annualNote">
-        </div>
+        <div class="foot" id="annualNote"></div>
       </div>
 
       <div class="card" style="display:flex;flex-direction:column">
@@ -286,11 +288,11 @@
       <div class="foot" id="fcNote"></div>
       <div class="foot" id="txtNote"></div>
     </div>
-    
-<div style="height:14px"></div>
 
-       <div class="card">
-      <div class="hrow"><h2>Average Number of floods per month </h2></div>
+    <div style="height:14px"></div>
+
+    <div class="card">
+      <div class="hrow"><h2>Average Number of floods per month</h2></div>
       <div class="hint" id="monthAvgMeta">Computing…</div>
       <div style="height:10px"></div>
       <div class="chartWrap"><canvas id="monthAvgChart"></canvas></div>
@@ -309,8 +311,8 @@
           <tbody id="monthAvgBody"></tbody>
         </table>
       </div>
-    </div> 
-    
+    </div>
+
     <div style="height:14px"></div>
 
     <div class="card">
@@ -344,6 +346,7 @@
     <div style="height:14px"></div>
 
     <script>
+/* ========= SCRIPT (Part 1/4) ========= */
 
 /* Fixed EST year-round (UTC-5). */
 const TZ="Etc/GMT+5";
@@ -351,11 +354,15 @@ const TZ="Etc/GMT+5";
 /* Datum toggle */
 let DISPLAY_DATUM = "MLLW"; // "MLLW" or "NAVD88"
 
+/* Datum relationship you provided:
+   NAVD88 = MLLW - 3.41   (i.e., NAVD is lower)
+*/
 const NAVD_MINUS_MLLW_FT = -3.41;           // NAVD = MLLW - 3.41
 function mllwToNavd(ft){ return ft + NAVD_MINUS_MLLW_FT; }  // mllw - 3.41
 function navdToMllw(ft){ return ft - NAVD_MINUS_MLLW_FT; }  // navd + 3.41
 
-/* USGS observed (15-min IV). */
+/* USGS observed (15-min IV) — water level elevation ONLY */
+const USGS_SITE = "01412150";
 const USGS_PARAM_PRIMARY = "72279";
 
 /* NWPS (water.noaa.gov) total water level forecasts */
@@ -387,7 +394,7 @@ let DAILY_TIDES_TXT_URL = TXT_PATH_CANDIDATES[0];
 const COL_DAILY_HIGH = "239251_72279_00021";
 const COL_DAILY_LOWHI = "239252_72279_00022";
 
-/* Top ten list (MLLW) — FIXED (shifted +3.41 ft from NAVD) */
+/* Top ten list (MLLW) */
 const TOP_TEN_MLLW = [
   {date:"10-29-2012", ft:10.44},
   {date:"11-25-1950", ft:10.01},
@@ -495,7 +502,11 @@ function updateUnitsAndBadges(){
 /* Simple helpers */
 function maxPoint(arr){ return arr.reduce((a,b)=>b.ft>a.ft?b:a, arr[0]); }
 function minPoint(arr){ return arr.reduce((a,b)=>b.ft<a.ft?b:a, arr[0]); }
-function setTXTStatus(msg){ if(txtNote) txtNote.textContent = ""; }
+
+/* TXT status line */
+function setTXTStatus(msg){
+  if(txtNote) txtNote.textContent = msg || "";
+}
 
 /* Top ten renderer (MLLW list; converts for display + classification) */
 function renderTopTen(){
@@ -515,7 +526,7 @@ function renderTopTen(){
   });
 }
 
-/* Helpers for predictions alignment (used later) */
+/* Helpers for predictions alignment */
 function ceilToNext15MinISO(iso){
   const d = new Date(iso);
   if(Number.isNaN(d.getTime())) return iso;
@@ -686,6 +697,7 @@ async function fetchObservedSeries({startISO=null,endISO=null,period=null}={}){
 
 /* =========================
 NWPS total water level forecast (water.noaa.gov)
+NOTE: We treat NWPS "primary" as NAVD88 feet to match your thresholds + USGS series.
 ========================= */
 async function fetchNWPSForecast({ hours = 72 } = {}) {
   const url = `https://api.water.noaa.gov/nwps/v1/gauges/${NWPS_GAUGE}/stageflow`;
@@ -694,6 +706,7 @@ async function fetchNWPSForecast({ hours = 72 } = {}) {
 
   const j = await res.json();
   const raw = j?.forecast?.data || [];
+
   const now = Date.now();
   const end = now + hours * 3600 * 1000;
 
@@ -705,57 +718,10 @@ async function fetchNWPSForecast({ hours = 72 } = {}) {
       return tt >= now && tt <= end;
     });
 }
-
 /* =========================
-NOAA CO-OPS predictions (6-min) -> we resample to 15-min later
+PART 2 / 4 — SCRIPT CONTINUED
+(paste immediately after Part 1, still inside the same <script>)
 ========================= */
-function toCOOPSLocalStringGMT(date){
-  const parts = new Intl.DateTimeFormat("en-US",{
-    timeZone:"UTC",
-    year:"numeric",month:"2-digit",day:"2-digit",
-    hour:"2-digit",minute:"2-digit",
-    hour12:false
-  }).formatToParts(date);
-
-  const y  = parts.find(p=>p.type==="year")?.value;
-  const mo = parts.find(p=>p.type==="month")?.value;
-  const d  = parts.find(p=>p.type==="day")?.value;
-  const hh = parts.find(p=>p.type==="hour")?.value;
-  const mm = parts.find(p=>p.type==="minute")?.value;
-
-  return `${y}${mo}${d} ${hh}:${mm}`;
-}
-function roundUpTo6Min(d){
-  const step = 6*60*1000;
-  return new Date(Math.ceil(d.getTime()/step)*step);
-}
-
-async function fetchCOOPSPredictions_MLLW({beginDateISO=null, hours=72}={}){
-  const start = beginDateISO ? new Date(beginDateISO) : new Date();
-  const begin = roundUpTo6Min(start);
-  const end = new Date(begin.getTime()+hours*3600*1000);
-
-  const url=new URL("https://api.tidesandcurrents.noaa.gov/api/prod/datagetter");
-  url.searchParams.set("product","predictions");
-  url.searchParams.set("application",COOPS_APP);
-  url.searchParams.set("station",COOPS_STATION);
-  url.searchParams.set("datum",COOPS_DATUM);
-  url.searchParams.set("time_zone",COOPS_TZ);
-  url.searchParams.set("units","english");
-  url.searchParams.set("interval",COOPS_INTERVAL);
-  url.searchParams.set("format","json");
-  url.searchParams.set("begin_date",toCOOPSLocalStringGMT(begin));
-  url.searchParams.set("end_date",toCOOPSLocalStringGMT(end));
-
-  const res=await fetch(url.toString(),{cache:"no-store"});
-  if(!res.ok) throw new Error("COOPS predictions failed "+res.status);
-  const j=await res.json();
-  if(j?.error) throw new Error(j.error?.message || "NOAA error");
-
-  const arr=j?.predictions||[];
-  return arr.map(p=>({ t: p.t.replace(" ","T")+":00Z", ft:+p.v }))
-            .filter(p=>Number.isFinite(p.ft) && p.t);
-}
 
 /* =========================
 Alerts
@@ -831,38 +797,9 @@ function filterSpikes15Min(values, maxDeltaFt=TS_MAX_DELTA_FT){
   return out;
 }
 
-/* Resample 6-min predictions to 15-min grid by nearest neighbor within +/-7.5 min */
-function resampleTo15Min_MLLW(pred6min, startISO, endISO){
-  const start = new Date(startISO).getTime();
-  const end = new Date(endISO).getTime();
-
-  const pts = (pred6min||[])
-    .map(p=>({t:new Date(p.t).getTime(), ft:p.ft}))
-    .filter(p=>Number.isFinite(p.t) && Number.isFinite(p.ft))
-    .sort((a,b)=>a.t-b.t);
-
-  const labels=[], values=[];
-  const s0 = Math.floor(start/TS_STEP_MS)*TS_STEP_MS;
-  const e0 = Math.ceil(end/TS_STEP_MS)*TS_STEP_MS;
-
-  let j=0;
-  for(let t=s0; t<=e0; t+=TS_STEP_MS){
-    labels.push(new Date(t).toISOString());
-
-    while(j<pts.length && pts[j].t < t-TS_STEP_MS) j++;
-
-    let best=null;
-    for(let k=Math.max(0,j-3); k<pts.length && k<j+4; k++){
-      const dt = Math.abs(pts[k].t - t);
-      if(best===null || dt < best.dt) best = {dt, ft:pts[k].ft};
-    }
-    values.push(best && best.dt <= (TS_STEP_MS/2) ? best.ft : null);
-  }
-  return {labels, values};
-}
-
 /* =========================
 NOAA-style flood stage bands + lines on TS chart
+(Chart.js plugin drawing behind datasets)
 ========================= */
 const floodBandsPlugin = {
   id:"floodBands",
@@ -883,6 +820,7 @@ const floodBandsPlugin = {
 
     ctx.save();
 
+    /* Bands */
     ctx.fillStyle = "rgba(251,191,36,.10)";
     ctx.fillRect(left, yModer, right-left, (yMinor - yModer));
 
@@ -892,6 +830,7 @@ const floodBandsPlugin = {
     ctx.fillStyle = "rgba(167,139,250,.10)";
     ctx.fillRect(left, chartArea.top, right-left, (yMajor - chartArea.top));
 
+    /* Lines */
     ctx.setLineDash([6,4]);
     ctx.lineWidth = 1.5;
 
@@ -906,6 +845,18 @@ const floodBandsPlugin = {
     hline(yModer, "rgba(251,113,133,.75)");
     hline(yMajor, "rgba(167,139,250,.75)");
 
+    /* Labels on the right edge */
+    ctx.setLineDash([]);
+    ctx.font = "950 12px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial";
+    ctx.textAlign = "right";
+    ctx.textBaseline = "bottom";
+    ctx.fillStyle = "rgba(251,191,36,.95)";
+    ctx.fillText("Minor", right-6, yMinor-4);
+    ctx.fillStyle = "rgba(251,113,133,.95)";
+    ctx.fillText("Moderate", right-6, yModer-4);
+    ctx.fillStyle = "rgba(167,139,250,.95)";
+    ctx.fillText("Major", right-6, yMajor-4);
+
     ctx.restore();
   }
 };
@@ -919,7 +870,11 @@ let HIGH_TIDES_NAVD=[];
 let annualChart=null, tsChart=null, monthAvgChart=null;
 let YEARS=[], annualMinor=[], annualModerate=[], annualMajor=[];
 
-const STATE = { lastNavd:null, ytdNavd:null, todayNavd:null, obs24Navd:null, pred72Mllw:null };
+/* State:
+- obs24Navd: [{t,ft}] in NAVD88
+- pred72Navd: [{t,ft}] in NAVD88 (from NWPS)
+*/
+const STATE = { lastNavd:null, ytdNavd:null, todayNavd:null, obs24Navd:null, pred72Navd:null };
 
 function sliceAfter(series, startISO){
   const s = new Date(startISO).getTime();
@@ -973,7 +928,7 @@ function countFloodPeaks_NAVD(series){
   return {minor, moderate, major};
 }
 
-/* Annual counts from TXT */
+/* Annual counts from TXT (events are daily maxima and "low-high" in NAVD) */
 function countAnnualFloodsFromTXT(eventsNavd){
   const T = THRESH.NAVD88;
   const byYear = new Map();
@@ -1095,7 +1050,7 @@ function ensureTsChart(){
           borderWidth:2,
           pointRadius:0,
           tension:0.25,
-          spanGaps:false, /* critical: do NOT connect across missing points */
+          spanGaps:false,
           borderColor:"rgba(45,212,191,.9)",
           segment:{
             borderColor:(ctx)=>{
@@ -1111,7 +1066,7 @@ function ensureTsChart(){
           borderWidth:2,
           pointRadius:0,
           tension:0.25,
-          spanGaps:false, /* critical */
+          spanGaps:false,
           borderDash:[6,5],
           borderColor:"rgba(45,212,191,.9)",
           segment:{
@@ -1165,29 +1120,42 @@ function ensureTsChart(){
     }
   });
 }
+/* =========================
+PART 3 / 4 — SCRIPT CONTINUED
+(paste immediately after Part 2, still inside the same <script>)
+========================= */
 
-/* Build 15-min grids + apply spike filter + compose into one label array */
+/* =========================
+Build 15-min grids + apply spike filter + compose into one label array
+Key fix vs your broken version:
+- NWPS forecast is NAVD already (ft)
+- We convert BOTH observed + predicted from NAVD -> DISPLAY datum for plotting
+- We align predictions to start exactly at the next 15-min tick after the last observed point
+========================= */
 function updateTsChartFromState(){
   const endISO = nowISO();
+
+  /* Observed window: last 24h */
   const startObsISO = new Date(new Date(endISO).getTime() - 24*3600*1000).toISOString();
 
-  /* Observed: force 15-min grid + spike removal (NAVD) */
+  /* Observed: fixed 15-min grid + spike removal (NAVD) */
   const obsGrid = buildFixedGrid15Min_fromAny(STATE.obs24Navd || [], startObsISO, endISO);
   let obsValsNavd = obsGrid.values.map(v => (v===null ? null : v));
   obsValsNavd = filterSpikes15Min(obsValsNavd, TS_MAX_DELTA_FT);
   const obsValsDisplay = obsValsNavd.map(v => (v===null ? null : toDisplayFtFromNavd(v)));
 
-  /* Predictions: 6-min -> 15-min grid (MLLW), then convert to display */
-  const predStartISO = obsGrid.labels[obsGrid.labels.length-1] || endISO;
+  /* Prediction start: next 15-min tick after last observed sample (prevents the 1-hour “gap”) */
+  const lastObsISO = (STATE.obs24Navd && STATE.obs24Navd.length) ? STATE.obs24Navd[STATE.obs24Navd.length-1].t : endISO;
+  const predStartISO = ceilToNext15MinISO(lastObsISO);
   const predEndISO = new Date(new Date(predStartISO).getTime() + 72*3600*1000).toISOString();
 
- const predGrid = buildFixedGrid15Min_fromAny(STATE.pred72Mllw || [], predStartISO, predEndISO);
-let predValsNavd = predGrid.values.map(v => (v===null ? null : v));
-predValsNavd = filterSpikes15Min(predValsNavd, TS_MAX_DELTA_FT);
-const predValsDisplay = predValsNavd.map(v => (v===null ? null : toDisplayFtFromNavd(v)));
+  /* Forecast: fixed 15-min grid + spike removal (NAVD) */
+  const predGrid = buildFixedGrid15Min_fromAny(STATE.pred72Navd || [], predStartISO, predEndISO);
+  let predValsNavd = predGrid.values.map(v => (v===null ? null : v));
+  predValsNavd = filterSpikes15Min(predValsNavd, TS_MAX_DELTA_FT);
+  const predValsDisplay = predValsNavd.map(v => (v===null ? null : toDisplayFtFromNavd(v)));
 
-
-  /* Combine: obs labels + pred labels (pred begins immediately after obs window) */
+  /* Combine into a single axis: obs then pred (no overlap) */
   const labels = [...obsGrid.labels, ...predGrid.labels];
   const obsData = [...obsValsDisplay, ...Array(predGrid.labels.length).fill(null)];
   const predData = [...Array(obsGrid.labels.length).fill(null), ...predValsDisplay];
@@ -1358,16 +1326,27 @@ function renderMonthAveragesChart(monthStats){
 
 function updateMonthAveragesFromTXT(){
   if(!HIGH_TIDES_NAVD.length){
-   monthAvgMeta.textContent = "";
+    monthAvgMeta.textContent = "";
     const zeros = Array.from({length:12},(_,i)=>({month:i+1,avgTotal:0,avgMinor:0,avgModerate:0,avgMajor:0,years:0}));
     renderMonthAveragesTable(zeros);
     renderMonthAveragesChart(zeros);
     return;
   }
- const stats = computeMonthlyAveragesFromEvents(HIGH_TIDES_NAVD);
-monthAvgMeta.textContent = "";
-renderMonthAveragesTable(stats);
-renderMonthAveragesChart(stats);
+  const stats = computeMonthlyAveragesFromEvents(HIGH_TIDES_NAVD);
+  monthAvgMeta.textContent = "";
+  renderMonthAveragesTable(stats);
+  renderMonthAveragesChart(stats);
+}
+
+/* =========================
+Init TXT-backed history
+========================= */
+async function initTXTBackedHistory(){
+  await loadDailyTidesFromTXT();
+  hydrateHistoricFromTXT();
+  updateMonthAveragesFromTXT();
+  buildAnnualArraysFromTXT_completedYears();
+  renderAnnual();
 }
 
 /* =========================
@@ -1407,6 +1386,7 @@ async function updateLiveAndAnnualCounts(){
     dayRangeMeta.textContent="—";
   }
 
+  /* Live peak counts (NAVD) overwrite current year bar so it updates daily */
   const counts = countFloodPeaks_NAVD(ytd);
   overwriteCurrentYearBarWithLiveCounts(counts);
   renderAnnual();
@@ -1414,8 +1394,8 @@ async function updateLiveAndAnnualCounts(){
 
 /* =========================
 Timeseries update (observed + predictions)
-- Observed: last 24h
-- Predictions: 72h starting at next 15-min tick after last observation
+- Observed: last 24h (USGS)
+- Predictions: 72h (NWPS)
 ========================= */
 async function updateTimeseries(){
   const end = new Date();
@@ -1424,31 +1404,21 @@ async function updateTimeseries(){
   const obs = await fetchObservedSeries({startISO:start.toISOString(), endISO:end.toISOString()});
   STATE.obs24Navd = obs;
 
-  const lastObsTime = obs.length ? obs[obs.length-1].t : null;
-
   try{
- const fc = await fetchNWPSForecast({ hours:72 });
-STATE.pred72Mllw = fc;
-fcNote.textContent = fc.length ? "" : "NOAA forecast returned no points.";
-
+    const fc = await fetchNWPSForecast({ hours:72 }); /* NAVD */
+    STATE.pred72Navd = fc;
+    fcNote.textContent = fc.length ? "" : "NOAA forecast returned no points.";
   }catch(e){
-    STATE.pred72Mllw = [];
+    STATE.pred72Navd = [];
     fcNote.textContent = `NOAA forecast unavailable: ${e?.message || String(e)}`;
   }
 
   updateTsChartFromState();
 }
-
 /* =========================
-Init TXT-backed history
+PART 4 / 4 — SCRIPT CONTINUED + BOOT + CONTROLS + CLOSE TAGS
+(paste immediately after Part 3, still inside the same <script>)
 ========================= */
-async function initTXTBackedHistory(){
-  await loadDailyTidesFromTXT();
-  hydrateHistoricFromTXT();
-  updateMonthAveragesFromTXT();
-  buildAnnualArraysFromTXT_completedYears();
-  renderAnnual();
-}
 
 /* =========================
 Boot
@@ -1467,10 +1437,11 @@ async function boot(){
   if(results[1].status==="rejected"){
     console.error("TXT init failed:", results[1].reason);
     histMeta.textContent =
-      "TXT load failed. Ensure file is committed at data/bivalve_daily_stats.txt (case-sensitive). See TXT status line.";
+      "TXT load failed. Ensure file is committed at data/bivalve_daily_stats.txt (case-sensitive). See TXT status line above.";
     monthAvgMeta.textContent =
-      "TXT load failed (monthly averages unavailable). See TXT status line.";
+      "TXT load failed (monthly averages unavailable). See TXT status line above.";
   }
+
   if(results[2].status==="rejected"){
     console.error("Live init failed:", results[2].reason);
     stageTextEl.textContent="LIVE DATA UNAVAILABLE";
@@ -1495,6 +1466,7 @@ datumBtn.addEventListener("click", ()=>{
   const oldDatum = DISPLAY_DATUM;
   const v = parseFloat(minElevEl.value);
 
+  /* Preserve numeric meaning when flipping datum (convert through NAVD) */
   if(Number.isFinite(v)){
     const navd = (oldDatum==="MLLW") ? mllwToNavd(v) : v;
     DISPLAY_DATUM = (DISPLAY_DATUM==="MLLW") ? "NAVD88" : "MLLW";
@@ -1515,11 +1487,13 @@ datumBtn.addEventListener("click", ()=>{
     curFtEl.textContent = toDisplayFtFromNavd(STATE.lastNavd.ft).toFixed(2);
     setStage(STATE.lastNavd.ft);
   }
+
   if(STATE.todayNavd && STATE.todayNavd.length){
     const dmx=maxPoint(STATE.todayNavd), dmn=minPoint(STATE.todayNavd);
     dayMaxFtEl.textContent = toDisplayFtFromNavd(dmx.ft).toFixed(2);
     dayMinFtEl.textContent = toDisplayFtFromNavd(dmn.ft).toFixed(2);
   }
+
   updateTsChartFromState();
 });
 
