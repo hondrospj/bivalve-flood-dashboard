@@ -1,6 +1,6 @@
 <!-- =========================
-PART A / 2 — index.html
-PASTE THIS FIRST. PART B CONTINUES AFTER THIS.
+PART 1 / 2 — index.html (PASTE THIS FIRST)
+Then say "go" and I’ll give PART 2 / 2.
 ========================= -->
 <!doctype html>
 <html lang="en">
@@ -36,224 +36,210 @@ PASTE THIS FIRST. PART B CONTINUES AFTER THIS.
         var(--bg);
       color:var(--text);
     }
-    .wrap{max-width:1200px;margin:0 auto;padding:16px}
-    .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px}
-    .chartWrapTall{height:320px}
-    .btn{background:#00000033;border:1px solid var(--line);color:#fff;padding:10px;border-radius:12px;font-weight:900;cursor:pointer}
+    .wrap{max-width:1200px;margin:0 auto;padding:16px 16px 28px}
+    a{color:inherit;text-decoration:none}
+
+    .banner{
+      display:none;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(251,113,133,.12);
+      border-radius:14px;
+      padding:12px 12px;
+      margin-bottom:12px;
+      box-shadow:var(--shadow);
+    }
+    .banner b{font-weight:950}
+    .banner .small{color:var(--muted);font-size:12.5px;margin-top:4px;line-height:1.25}
+
+    .top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+    .brand{display:flex;align-items:center;gap:12px}
+    .brand img{width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:rgba(0,0,0,.25)}
+    .brandTitle{display:flex;flex-direction:column;line-height:1.1}
+    .kicker{color:var(--muted);font-weight:850;font-size:12px;letter-spacing:.2px;text-transform:uppercase}
+    .name{font-size:18px;font-weight:950;letter-spacing:.2px}
+    .pill{
+      display:flex;align-items:center;gap:10px;
+      padding:10px 12px;border-radius:999px;
+      border:1px solid var(--line);
+      background:rgba(0,0,0,.16);
+      box-shadow:var(--shadow);
+      font-weight:950;font-size:12.5px;white-space:nowrap;
+    }
+    .dot{width:9px;height:9px;border-radius:999px;background:var(--ok);box-shadow:0 0 0 4px rgba(45,212,191,.16)}
+
+    .grid{display:grid;grid-template-columns:1.15fr .85fr;gap:14px;margin-top:10px}
+    @media(max-width:980px){.grid{grid-template-columns:1fr}}
+
+    .card{
+      background:var(--card);
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      padding:14px;
+      overflow:hidden;
+      position:relative;
+    }
+    .card:before{
+      content:"";
+      position:absolute;
+      inset:-1px;
+      pointer-events:none;
+      opacity:.9;
+      background:
+        radial-gradient(650px 280px at 16% 0%, rgba(45,212,191,.12), transparent 55%),
+        radial-gradient(520px 320px at 90% 18%, rgba(251,113,133,.10), transparent 60%);
+    }
+    .card>*{position:relative}
+
+    .hrow{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px}
+    .hrow h2{margin:0;font-size:12.5px;letter-spacing:.22px;text-transform:uppercase;color:var(--muted);font-weight:950}
+
+    .metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+    @media(max-width:720px){.metrics{grid-template-columns:1fr}}
+    .metric{background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:12px;min-height:88px}
+    .ml{color:var(--muted);font-weight:950;font-size:11.5px;text-transform:uppercase;letter-spacing:.2px;margin-bottom:8px;text-align:center}
+    .mv{display:flex;align-items:baseline;justify-content:center;gap:8px;font-weight:950;font-size:28px;letter-spacing:.2px;text-align:center}
+    .unit{color:var(--muted);font-size:12px;font-weight:950}
+    .ms{margin-top:6px;color:var(--muted);font-size:12.5px;line-height:1.25;text-align:center}
+
+    .rangeBox{
+      margin-top:10px;
+      background:var(--card2);
+      border:1px solid var(--line);
+      border-radius:14px;
+      padding:12px;
+      text-align:center;
+    }
+    .rangeTitle{color:var(--muted);font-weight:950;font-size:11.5px;text-transform:uppercase;letter-spacing:.2px}
+    .rangeRow{display:flex;justify-content:center;gap:26px;flex-wrap:wrap;margin-top:8px}
+    .rangeCol{min-width:160px}
+    .rangeLab{color:var(--muted);font-weight:950;font-size:11px;letter-spacing:.18px;text-transform:uppercase}
+    .rangeVal{font-weight:950;font-size:36px;line-height:1;margin-top:6px}
+    .rangeMeta{color:var(--muted);font-size:12.5px;margin-top:8px}
+
+    .stages{
+      display:grid;
+      grid-template-columns:repeat(3, minmax(220px,1fr));
+      gap:10px;
+      overflow-x:auto;
+      padding-bottom:2px;
+      -webkit-overflow-scrolling:touch;
+      margin-top:10px
+    }
+    @media(max-width:760px){.stages{grid-template-columns:1fr;overflow-x:visible}}
+    .stage{
+      background:var(--card2);
+      border:1px solid var(--line);
+      border-radius:14px;
+      padding:14px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      min-width:220px;
+      overflow:hidden;
+    }
+    .stageName{font-weight:950;font-size:20px;letter-spacing:.2px;white-space:nowrap;flex:1 1 auto;min-width:0}
+    .badge{font-weight:950;font-size:13px;padding:10px 14px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.06);white-space:nowrap;flex:0 0 auto}
+
+    .table{border-radius:14px;overflow:hidden;border:1px solid var(--line);background:var(--card2)}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:10px 10px;border-bottom:1px solid var(--line);font-size:13px}
+    th{text-align:left;color:var(--muted);text-transform:uppercase;letter-spacing:.2px;font-size:11px;font-weight:950}
+    tr:last-child td{border-bottom:none}
+
+    .tag{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.05);font-weight:950;font-size:12px;white-space:nowrap}
+    .chip{width:9px;height:9px;border-radius:99px;display:inline-block}
+
+    .chartWrapTall{height:320px;width:100%}
+    .chartWrap{height:240px;width:100%}
+    .foot{margin-top:10px;color:var(--muted);font-size:12.5px;line-height:1.25;text-align:center}
+
+    .filterRow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+    .input,.btn,select{
+      background:rgba(0,0,0,.18);
+      border:1px solid var(--line);
+      color:var(--text);
+      border-radius:12px;
+      padding:10px 10px;
+      font-weight:950;
+      font-size:13px;
+      outline:none
+    }
+    .input{min-width:240px}
+    .btn{cursor:pointer}
+    .btn:hover{filter:brightness(1.06)}
+    .hint{color:var(--muted);font-size:12.5px;line-height:1.25}
   </style>
 </head>
 
 <body>
-<div class="wrap">
+  <div class="wrap">
 
-  <button class="btn" id="datumBtn">Datum: MLLW</button>
-
-  <div class="card">
-    <div class="chartWrapTall">
-      <canvas id="tideChart"></canvas>
+    <div class="banner" id="alertBanner">
+      <div><b id="alertTitle">Coastal Flood Advisory</b></div>
+      <div class="small" id="alertBody"></div>
     </div>
-  </div>
 
-</div>
+    <div class="top">
+      <a class="brand" href="https://cupajoe.live/" target="_blank" rel="noopener">
+        <img src="assets/cupajoe-logo.png" alt="Cupajoe logo">
+        <div class="brandTitle">
+          <div class="kicker">USGS 01412150 · Maurice River at Bivalve, NJ</div>
+          <div class="name">Bivalve Tidal Flooding Dashboard</div>
+        </div>
+      </a>
 
-<script>
-"use strict";
+      <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap">
+        <button class="btn" id="datumBtn" title="Flip between MLLW and NAVD88">Datum: MLLW</button>
+        <div class="pill" id="lastPill">Last updated: —</div>
+        <div class="pill" id="stagePill">
+          <span class="dot" id="stageDot"></span>
+          <span id="stageText">Loading…</span>
+        </div>
+      </div>
+    </div>
 
-/* =============================
-CONFIG
-============================= */
+    <div class="grid">
+      <div class="card">
+        <div class="hrow">
+          <h2>Live conditions</h2>
+          <div class="kicker" style="text-transform:none">Time Expressed In EST</div>
+        </div>
 
-const TZ = "Etc/GMT+5";
-let DISPLAY_DATUM = "MLLW";
+        <div class="metrics">
+          <div class="metric">
+            <div class="ml">Current water elevation</div>
+            <div class="mv">
+              <span id="curFt">—</span>
+              <span class="unit" data-unit>ft MLLW</span>
+            </div>
+            <div class="ms" id="curMeta">Updated: —</div>
+            <div class="ms" id="nearMeta" style="display:none"></div>
+          </div>
+        </div>
 
-const OFFSET_NAVD_FROM_MLLW_FT = 3.41;
-const USGS_SITE = "01412150";
-const USGS_PARAM = "72279";
-const COOPS_STATION = "8536110";
+        <div class="rangeBox">
+          <div class="rangeTitle">Daily range (today)</div>
+          <div class="rangeRow">
+            <div class="rangeCol">
+              <div class="rangeLab">Max</div>
+              <div class="rangeVal">
+                <span id="dayMaxFt">—</span><span class="unit"> ft</span>
+                <span class="unit" data-unit>MLLW</span>
+              </div>
+            </div>
+            <div class="rangeCol">
+              <div class="rangeLab">Min</div>
+              <div class="rangeVal">
+                <span id="dayMinFt">—</span><span class="unit"> ft</span>
+                <span class="unit" data-unit>MLLW</span>
+              </div>
+            </div>
+          </div>
+          <div class="rangeMeta" id="dayRangeMeta">—</div>
+        </div>
 
-const THRESH_NAVD_MINOR = 4.19;
-const THRESH_NAVD_MODERATE = 5.19;
-const THRESH_NAVD_MAJOR = 6.19;
-
-/* =============================
-HELPERS
-============================= */
-
-function mllwToNavd(v){ return v + OFFSET_NAVD_FROM_MLLW_FT; }
-function navdToMllw(v){ return v - OFFSET_NAVD_FROM_MLLW_FT; }
-
-function displayFromNavd(v){
-  return DISPLAY_DATUM === "NAVD88" ? v : navdToMllw(v);
-}
-
-function thresholdForDisplay(kind){
-  const navd =
-    kind==="minor" ? THRESH_NAVD_MINOR :
-    kind==="moderate" ? THRESH_NAVD_MODERATE :
-    THRESH_NAVD_MAJOR;
-  return displayFromNavd(navd);
-}
-
-async function fetchJSON(url){
-  const r = await fetch(url,{cache:"no-store"});
-  if(!r.ok) throw new Error("HTTP "+r.status);
-  return r.json();
-}
-
-/* =============================
-DATA LOADERS
-============================= */
-
-async function loadObserved24h(){
-  const end = new Date();
-  const start = new Date(end.getTime() - 24*3600*1000);
-
-  const url =
-    `https://waterservices.usgs.gov/nwis/iv/?format=json` +
-    `&sites=${USGS_SITE}` +
-    `&parameterCd=${USGS_PARAM}` +
-    `&startDT=${start.toISOString()}` +
-    `&endDT=${end.toISOString()}`;
-
-  const json = await fetchJSON(url);
-  return json.value.timeSeries[0].values[0].value.map(v=>({
-    x:new Date(v.dateTime).getTime(),
-    y:displayFromNavd(+v.value)
-  }));
-}
-
-async function loadPredicted72h(){
-  const now = new Date();
-  const end = new Date(now.getTime() + 72*3600*1000);
-
-  const pad = n=>String(n).padStart(2,"0");
-  const fmt = d=>`${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
-
-  const url =
-    `https://api.tidesandcurrents.noaa.gov/api/prod/datagetter` +
-    `?product=predictions&datum=MLLW&station=${COOPS_STATION}` +
-    `&begin_date=${fmt(now)}&end_date=${fmt(end)}` +
-    `&time_zone=gmt&units=english&interval=6&format=json`;
-
-  const json = await fetchJSON(url);
-  return json.predictions.map(p=>({
-    x:new Date(p.t+"Z").getTime(),
-    y:displayFromNavd(mllwToNavd(+p.v))
-  }));
-}
-
-/* =============================
-CHART + NOAA FLOOD OVERLAY
-============================= */
-
-let tideChart = null;
-
-const floodOverlayPlugin = {
-  id:"floodOverlay",
-  beforeDatasetsDraw(chart,args,opts){
-    const y = chart.scales.y;
-    const a = chart.chartArea;
-    const ctx = chart.ctx;
-
-    const draw=(v,color)=>{
-      const py = y.getPixelForValue(v);
-      ctx.save();
-      ctx.strokeStyle=color;
-      ctx.setLineDash([6,4]);
-      ctx.beginPath();
-      ctx.moveTo(a.left,py);
-      ctx.lineTo(a.right,py);
-      ctx.stroke();
-      ctx.restore();
-    };
-
-    draw(opts.minor,getComputedStyle(document.documentElement).getPropertyValue("--minor"));
-    draw(opts.moderate,getComputedStyle(document.documentElement).getPropertyValue("--moderate"));
-    draw(opts.major,getComputedStyle(document.documentElement).getPropertyValue("--major"));
-  }
-};
-
-function ensureChart(){
-  if(tideChart) return tideChart;
-
-  tideChart = new Chart(
-    document.getElementById("tideChart"),
-    {
-      type:"line",
-      data:{datasets:[
-        {label:"Observed",data:[],borderColor:"#2dd4bf",pointRadius:0},
-        {label:"Predicted",data:[],borderColor:"#94a3b8",borderDash:[5,4],pointRadius:0}
-      ]},
-      options:{
-        animation:false,
-        parsing:false,
-        scales:{x:{type:"time"},y:{}},
-        plugins:{
-          legend:{display:false},
-          floodOverlay:{
-            minor:thresholdForDisplay("minor"),
-            moderate:thresholdForDisplay("moderate"),
-            major:thresholdForDisplay("major")
-          }
-        }
-      },
-      plugins:[floodOverlayPlugin]
-    }
-  );
-
-  return tideChart;
-}
-/* =============================
-RENDER + UPDATE
-============================= */
-
-async function updateAll(){
-  try{
-    const [obs, pred] = await Promise.all([
-      loadObserved24h(),
-      loadPredicted72h()
-    ]);
-
-    const chart = ensureChart();
-
-    chart.data.datasets[0].data = obs;
-    chart.data.datasets[1].data = pred;
-
-    chart.options.plugins.floodOverlay.minor = thresholdForDisplay("minor");
-    chart.options.plugins.floodOverlay.moderate = thresholdForDisplay("moderate");
-    chart.options.plugins.floodOverlay.major = thresholdForDisplay("major");
-
-    const ys = [...obs, ...pred].map(d=>d.y).filter(v=>isFinite(v));
-    if(ys.length){
-      chart.options.scales.y.min = Math.min(...ys) - 0.4;
-      chart.options.scales.y.max = Math.max(...ys) + 0.4;
-    }
-
-    chart.update("none");
-  } catch(err){
-    console.error(err);
-  }
-}
-
-/* =============================
-DATUM TOGGLE
-============================= */
-
-document.getElementById("datumBtn").addEventListener("click",()=>{
-  DISPLAY_DATUM = DISPLAY_DATUM==="MLLW" ? "NAVD88" : "MLLW";
-  document.getElementById("datumBtn").textContent =
-    "Datum: " + (DISPLAY_DATUM==="NAVD88" ? "NAVD88" : "MLLW");
-  updateAll();
-});
-
-/* =============================
-BOOT
-============================= */
-
-ensureChart();
-updateAll();
-setInterval(updateAll, 5 * 60 * 1000);
-
-</script>
-</body>
-</html>
+        <div class="stages" aria-label="Flood stages">
+          <div class="stage">
+            <div class="stageName">
